@@ -1,4 +1,11 @@
-import Play from "./Play";
+// import Play from "./ram/dynamic/Play";
+// import PlayDynamic from "./ram/PlayDynamic";
+import Play300 from "./Play";
+// import Play300 from "./ram/Play300";
+// import Play300 from "./Play";
+// import Play300 from "./ram/Play";
+// import Play900 from "./ram/Play300";
+// import PlayDynamic from "./Play";
 import DiscImageDevice from "./DiscImageDevice";
 
 export let PlayModule: any = null;
@@ -19,7 +26,7 @@ export let initPlayModule = async function () {
 
     try {
         console.log('Loading Play WASM module...');
-        PlayModule = await Play(module_overrides);
+        PlayModule = await Play300(module_overrides);
         console.log('Play WASM module loaded successfully');
 
         // Verify WASM memory is initialized

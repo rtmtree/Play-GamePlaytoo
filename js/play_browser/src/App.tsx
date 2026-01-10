@@ -36,6 +36,7 @@ function App() {
   const [stateLoaded, setStateLoaded] = useState(false);
   const [controlsExpanded, setControlsExpanded] = useState(true);
   const [selectedRomFileName, setSelectedRomFileName] = useState<string | null>(null);
+  const [isPaused, setIsPaused] = useState(false);
 
   // Check if ROM and state are in URL parameters
   const [showFileInputs, setShowFileInputs] = useState(() => {
@@ -366,6 +367,22 @@ function App() {
     }
   }, [romLoaded, stateLoaded]);
 
+  // Update pause state periodically when ROM is loaded
+  useEffect(() => {
+    if (!romLoaded || !PlayModule) {
+      return;
+    }
+    const interval = setInterval(() => {
+      try {
+        const status = PlayModule.getStatus();
+        setIsPaused(status === 2); // PAUSED = 2
+      } catch (error) {
+        // Ignore errors
+      }
+    }, 500); // Check every 500ms
+    return () => clearInterval(interval);
+  }, [romLoaded]);
+
   const handleLoadState = async function (event: ChangeEvent<HTMLInputElement>) {
     if (PlayModule === null) {
       console.error("PlayModule not initialized");
@@ -396,6 +413,28 @@ function App() {
     }
   }
 
+  const handlePause = useCallback(function () {
+    if (PlayModule === null) {
+      console.error("PlayModule not initialized");
+      return;
+    }
+    try {
+      const status = PlayModule.getStatus();
+      // STATUS: RUNNING = 1, PAUSED = 2
+      if (status === 1) { // RUNNING
+        PlayModule.pause();
+        setIsPaused(true);
+        console.log("Emulator paused");
+      } else if (status === 2) { // PAUSED
+        PlayModule.resume();
+        setIsPaused(false);
+        console.log("Emulator resumed");
+      }
+    } catch (error) {
+      console.error("Error toggling pause:", error);
+    }
+  }, []);
+
   console.log(state.value);
   if (PlayModule === null) {
     return (
@@ -415,20 +454,21 @@ function App() {
         fontFamily: 'system-ui, -apple-system, sans-serif'
       }}>
         <div style={{
-          fontSize: '32px',
-          marginBottom: '20px',
-          animation: 'spin 1s linear infinite'
+          width: '40px',
+          height: '40px',
+          position: 'relative'
         }}>
-          ⏳
-        </div>
-        <div style={{
-          fontSize: '24px',
-          fontWeight: '500'
-        }}>
-          Loading Emulator...
+          <div style={{
+            width: '40px',
+            height: '40px',
+            border: '3px solid rgba(255, 255, 255, 0.2)',
+            borderTopColor: 'rgba(255, 255, 255, 0.9)',
+            borderRadius: '50%',
+            animation: 'iosSpin 0.8s linear infinite'
+          }}></div>
         </div>
         <style>{`
-          @keyframes spin {
+          @keyframes iosSpin {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
           }
@@ -456,20 +496,21 @@ function App() {
             fontFamily: 'system-ui, -apple-system, sans-serif'
           }}>
             <div style={{
-              fontSize: '32px',
-              marginBottom: '20px',
-              animation: 'spin 1s linear infinite'
+              width: '40px',
+              height: '40px',
+              position: 'relative'
             }}>
-              ⏳
-            </div>
-            <div style={{
-              fontSize: '24px',
-              fontWeight: '500'
-            }}>
-              {loadingMessage}
+              <div style={{
+                width: '40px',
+                height: '40px',
+                border: '3px solid rgba(255, 255, 255, 0.2)',
+                borderTopColor: 'rgba(255, 255, 255, 0.9)',
+                borderRadius: '50%',
+                animation: 'iosSpin 0.8s linear infinite'
+              }}></div>
             </div>
             <style>{`
-              @keyframes spin {
+              @keyframes iosSpin {
                 from { transform: rotate(0deg); }
                 to { transform: rotate(360deg); }
               }
@@ -636,12 +677,35 @@ function App() {
                 >
                   Load state from a file (On my iPhone/iPad → GamePlaytoo → states → [ROM Name])
                 </button>
+                <button
+                  onClick={handlePause}
+                  style={{
+                    padding: '12px',
+                    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+                    color: 'white',
+                    border: '3px solid rgba(255, 255, 255, 0.5)',
+                    borderRadius: '50px',
+                    cursor: 'pointer',
+                    fontSize: '16px',
+                    fontWeight: '500',
+                    minHeight: '44px',
+                    width: '100%',
+                    WebkitTapHighlightColor: 'transparent',
+                    touchAction: 'manipulation',
+                    transition: 'opacity 0.2s ease',
+                    display: romLoaded ? 'block' : 'none',
+                  }}
+                  onTouchStart={(e) => e.currentTarget.style.opacity = '0.7'}
+                  onTouchEnd={(e) => e.currentTarget.style.opacity = '1'}
+                >
+                  {isPaused ? 'Resume' : 'Pause'}
+                </button>
               </div>
             </div>
           </>
         )
         }
-        <Stats />
+        {/* <Stats /> */}
       </div >
     );
   }

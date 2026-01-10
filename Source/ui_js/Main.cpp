@@ -177,6 +177,33 @@ bool loadState(std::string path)
 	return future.get();
 }
 
+void pause()
+{
+	if(!g_virtualMachine)
+	{
+		return;
+	}
+	g_virtualMachine->Pause();
+}
+
+void resume()
+{
+	if(!g_virtualMachine)
+	{
+		return;
+	}
+	g_virtualMachine->Resume();
+}
+
+int getStatus()
+{
+	if(!g_virtualMachine)
+	{
+		return 0; // STOPPED
+	}
+	return static_cast<int>(g_virtualMachine->GetStatus());
+}
+
 EMSCRIPTEN_BINDINGS(Play)
 {
 	using namespace emscripten;
@@ -188,4 +215,7 @@ EMSCRIPTEN_BINDINGS(Play)
 	function("clearStats", &clearStats);
 	function("saveState", &saveState);
 	function("loadState", &loadState);
+	function("pause", &pause);
+	function("resume", &resume);
+	function("getStatus", &getStatus);
 }
