@@ -1,50 +1,78 @@
 import Play from "./Play";
 import DiscImageDevice from "./DiscImageDevice";
 
-export let PlayModule : any = null;
+export let PlayModule: any = null;
 
 let module_overrides = {
-    locateFile: function(path : string) {
-        const baseURL = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf( "/" ));
+    locateFile: function (path: string) {
+        const baseURL = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf("/"));
         return baseURL + '/' + path;
     },
     mainScriptUrlOrBlob: "",
 };
 
-export let initPlayModule = async function() {
+export let initPlayModule = async function () {
     // Log SharedArrayBuffer availability for debugging (not required since we disabled pthreads)
     console.log('SharedArrayBuffer available:', typeof SharedArrayBuffer !== 'undefined');
-    
+
     module_overrides.mainScriptUrlOrBlob = module_overrides.locateFile('Play.js');
-    
+
     try {
         console.log('Loading Play WASM module...');
         PlayModule = await Play(module_overrides);
         console.log('Play WASM module loaded successfully');
-        
+
         // Verify WASM memory is initialized
         if (!PlayModule) {
             throw new Error('PlayModule is null or undefined');
         }
-        
+
         if (!PlayModule.HEAP8) {
             throw new Error('WASM module memory (HEAP8) not properly initialized');
         }
-        
+
         console.log('WASM memory initialized, HEAP8 size:', PlayModule.HEAP8.length);
-        
+
         console.log('Creating /work directory...');
         PlayModule.FS.mkdir("/work");
-        
+
         console.log('Initializing DiscImageDevice...');
         PlayModule.discImageDevice = new DiscImageDevice(PlayModule);
-        
+
         console.log('Calling initVm...');
         // Wait for module to be fully initialized
         if (!PlayModule.ready) {
             await PlayModule;
         }
-        
+
+        // Wait for worker threads to finish loading before calling initVm
+        // This helps prevent "Out of bounds memory access" errors in worker threads
+        // on low RAM devices like iPhone Air where worker initialization takes longer
+        console.log('Waiting for worker threads to initialize...');
+
+        // Detect iPhone/iOS devices which may need longer initialization time
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        const isLowRAMDevice = isIOS || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4);
+
+        // Longer delay for iOS/low RAM devices to ensure workers are fully initialized
+        const delayMs = isLowRAMDevice ? 1500 : 500;
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+
+        // Additional check: wait for any pending worker operations
+        if (PlayModule.PThread && PlayModule.PThread.unusedWorkers) {
+            // Wait for all unused workers to be loaded (they're initialized on preRun)
+            let maxWaitTime = 3000; // Max 3 seconds
+            const startTime = Date.now();
+            while (Date.now() - startTime < maxWaitTime) {
+                const allWorkersLoaded = PlayModule.PThread.unusedWorkers.every((worker: any) => worker.loaded);
+                if (allWorkersLoaded) {
+                    console.log('All worker threads loaded');
+                    break;
+                }
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        }
+
         // Ensure canvas exists before calling initVm (initVm creates WebGL context on #outputCanvas)
         // Note: Do NOT create a WebGL context here - let initVm() create it via emscripten_webgl_create_context
         let canvas = document.getElementById('outputCanvas') as HTMLCanvasElement;
@@ -75,7 +103,7 @@ export let initPlayModule = async function() {
                 console.log('Canvas dimensions updated to:', canvas.width, 'x', canvas.height);
             }
         }
-        
+
         // Verify WebGL is available (but don't create a context - let initVm do that)
         const testCanvas = document.createElement('canvas');
         const testGl = testCanvas.getContext('webgl2') || testCanvas.getContext('webgl');
@@ -83,7 +111,7 @@ export let initPlayModule = async function() {
             throw new Error('WebGL is not supported in this environment. Cannot initialize Play! emulator.');
         }
         console.log('WebGL support verified, WebGL version:', testGl.getParameter(testGl.VERSION));
-        
+
         // Verify canvas is findable by CSS selector (emscripten_webgl_create_context uses querySelector)
         const canvasBySelector = document.querySelector('#outputCanvas');
         if (!canvasBySelector) {
@@ -93,70 +121,89 @@ export let initPlayModule = async function() {
             console.warn('Warning: Multiple elements found with id "outputCanvas"');
         }
         console.log('Canvas #outputCanvas verified, accessible by CSS selector');
-        
+
         // Try embind export first (initVm), then EXPORTED_FUNCTIONS (_initVm), then ccall
         let initResult;
         if (typeof PlayModule.initVm === 'function') {
             // Call via embind (preferred when using --bind)
             // initVm is void, but might throw on failure (e.g., assert failure in WebGL context creation)
-            try {
-                initResult = PlayModule.initVm();
-                // initVm is void, so initResult should be undefined
-                // If it returns a number, something went wrong
-                if (typeof initResult === 'number') {
-                    console.error('initVm returned unexpected numeric value:', initResult);
-                    throw new Error(`initVm returned unexpected value: ${initResult}. This might indicate a WebGL context creation failure.`);
-                }
-            } catch (error: any) {
-                // Log detailed error information
-                console.error('initVm threw an error:', error);
-                console.error('Error details:', {
-                    type: typeof error,
-                    value: error,
-                    message: error?.message,
-                    name: error?.name,
-                    stack: error?.stack
-                });
-                
-                // Handle numeric errors (Emscripten assertion failures often throw numbers)
-                if (typeof error === 'number') {
-                    // Convert to hex for debugging
-                    const errorHex = '0x' + error.toString(16).toUpperCase();
-                    console.error(`Numeric error code: ${error} (${errorHex})`);
-                    
-                    // Check if canvas is actually accessible
-                    const canvasCheck = document.getElementById('outputCanvas');
-                    if (!canvasCheck) {
-                        throw new Error(`initVm failed: Canvas #outputCanvas not found in DOM. Error code: ${error} (${errorHex}). This indicates WebGL context creation failed because the canvas element is missing.`);
+            // Retry logic for "unwind" errors which can occur when worker threads aren't ready
+            let retryCount = 0;
+            const maxRetries = isLowRAMDevice ? 3 : 1;
+            const retryDelay = 1000; // 1 second between retries
+
+            while (retryCount <= maxRetries) {
+                try {
+                    initResult = PlayModule.initVm();
+                    // initVm is void, so initResult should be undefined
+                    // If it returns a number, something went wrong
+                    if (typeof initResult === 'number') {
+                        console.error('initVm returned unexpected numeric value:', initResult);
+                        throw new Error(`initVm returned unexpected value: ${initResult}. This might indicate a WebGL context creation failure.`);
                     }
-                    
-                    // Check canvas dimensions
-                    const canvasEl = canvasCheck as HTMLCanvasElement;
-                    if (canvasEl.width === 0 || canvasEl.height === 0) {
-                        throw new Error(`initVm failed: Canvas #outputCanvas has invalid dimensions (${canvasEl.width}x${canvasEl.height}). Error code: ${error} (${errorHex}). Canvas must have non-zero dimensions for WebGL context creation.`);
+                    // Success - break out of retry loop
+                    break;
+                } catch (error: any) {
+                    // Check if this is an "unwind" error (C++ exception indicating worker thread issue)
+                    const isUnwindError = error === 'unwind' || String(error) === 'unwind';
+
+                    if (isUnwindError && retryCount < maxRetries) {
+                        retryCount++;
+                        console.warn(`initVm failed with unwind error (attempt ${retryCount}/${maxRetries + 1}), waiting ${retryDelay}ms before retry...`);
+                        await new Promise(resolve => setTimeout(resolve, retryDelay));
+                        continue; // Retry
                     }
-                    
-                    // Check if canvas is in the document
-                    if (!document.body.contains(canvasCheck)) {
-                        throw new Error(`initVm failed: Canvas #outputCanvas is not in the document body. Error code: ${error} (${errorHex}). Canvas must be attached to the DOM for WebGL context creation.`);
+                    // Log detailed error information
+                    console.error('initVm threw an error:', error);
+                    console.error('Error details:', {
+                        type: typeof error,
+                        value: error,
+                        message: error?.message,
+                        name: error?.name,
+                        stack: error?.stack
+                    });
+
+                    // Handle numeric errors (Emscripten assertion failures often throw numbers)
+                    if (typeof error === 'number') {
+                        // Convert to hex for debugging
+                        const errorHex = '0x' + error.toString(16).toUpperCase();
+                        console.error(`Numeric error code: ${error} (${errorHex})`);
+
+                        // Check if canvas is actually accessible
+                        const canvasCheck = document.getElementById('outputCanvas');
+                        if (!canvasCheck) {
+                            throw new Error(`initVm failed: Canvas #outputCanvas not found in DOM. Error code: ${error} (${errorHex}). This indicates WebGL context creation failed because the canvas element is missing.`);
+                        }
+
+                        // Check canvas dimensions
+                        const canvasEl = canvasCheck as HTMLCanvasElement;
+                        if (canvasEl.width === 0 || canvasEl.height === 0) {
+                            throw new Error(`initVm failed: Canvas #outputCanvas has invalid dimensions (${canvasEl.width}x${canvasEl.height}). Error code: ${error} (${errorHex}). Canvas must have non-zero dimensions for WebGL context creation.`);
+                        }
+
+                        // Check if canvas is in the document
+                        if (!document.body.contains(canvasCheck)) {
+                            throw new Error(`initVm failed: Canvas #outputCanvas is not in the document body. Error code: ${error} (${errorHex}). Canvas must be attached to the DOM for WebGL context creation.`);
+                        }
+
+                        throw new Error(`initVm failed: WebGL context creation failed with error code ${error} (${errorHex}). Canvas exists with dimensions ${canvasEl.width}x${canvasEl.height}. This might indicate WebGL 2.0 is not available or the context attributes are incompatible.`);
                     }
-                    
-                    throw new Error(`initVm failed: WebGL context creation failed with error code ${error} (${errorHex}). Canvas exists with dimensions ${canvasEl.width}x${canvasEl.height}. This might indicate WebGL 2.0 is not available or the context attributes are incompatible.`);
-                }
-                
-                // Check for Emscripten-specific error patterns
-                const errorStr = String(error);
-                if (errorStr.includes('assert') || errorStr.includes('Assertion')) {
-                    throw new Error(`initVm assertion failed. This usually means WebGL context creation failed. Error: ${errorStr}`);
-                }
-                
-                // Re-throw with more context
-                if (error instanceof Error) {
-                    throw new Error(`initVm failed: ${error.message}. The canvas #outputCanvas exists and has dimensions ${canvas.width}x${canvas.height}.`);
-                } else {
-                    throw new Error(`initVm failed with unexpected error type: ${typeof error}, value: ${error}`);
+
+                    // Check for Emscripten-specific error patterns
+                    const errorStr = String(error);
+                    if (errorStr.includes('assert') || errorStr.includes('Assertion')) {
+                        throw new Error(`initVm assertion failed. This usually means WebGL context creation failed. Error: ${errorStr}`);
+                    }
+
+                    // Re-throw with more context
+                    if (error instanceof Error) {
+                        throw new Error(`initVm failed: ${error.message}. The canvas #outputCanvas exists and has dimensions ${canvas.width}x${canvas.height}.`);
+                    } else {
+                        throw new Error(`initVm failed with unexpected error type: ${typeof error}, value: ${error}`);
+                    }
                 }
             }
+            // If we exhausted retries, the error was already thrown above
         } else if (typeof PlayModule._initVm === 'function') {
             // Call via EXPORTED_FUNCTIONS
             try {
@@ -181,12 +228,12 @@ export let initPlayModule = async function() {
             throw new Error('initVm function not found. Available methods: ' + Object.keys(PlayModule).filter(k => k.includes('init') || k === '_initVm').join(', '));
         }
         console.log('initVm completed successfully');
-        
+
     } catch (error) {
         console.error('Error initializing PlayModule:', error);
         console.error('Error type:', typeof error);
         console.error('Error value:', error);
-        
+
         // Log additional debugging info
         if (error instanceof Error) {
             console.error('Error message:', error.message);
@@ -198,7 +245,7 @@ export let initPlayModule = async function() {
         } else {
             console.error('Error stringified:', JSON.stringify(error));
         }
-        
+
         // Log PlayModule state if available
         if (PlayModule) {
             console.error('PlayModule state:', {
@@ -208,7 +255,7 @@ export let initPlayModule = async function() {
                 hasccall: !!PlayModule.ccall
             });
         }
-        
+
         throw error;
     }
 };
