@@ -55,7 +55,7 @@ extern "C" void initVm()
 		g_context = emscripten_webgl_create_context("#outputCanvas", &attr);
 		if(g_context <= 0)
 		{
-			printf("ERROR: Failed to create WebGL context. Error code: %d\n", g_context);
+			printf("ERROR: Failed to create WebGL context. Error code: %lu\n", static_cast<unsigned long>(g_context));
 			printf("Canvas #outputCanvas may not exist or WebGL is not available.\n");
 			// Throw an exception that JavaScript can catch
 			emscripten_throw_string("WebGL context creation failed");
@@ -177,7 +177,7 @@ bool loadState(std::string path)
 	return future.get();
 }
 
-void pause()
+void pauseVm()
 {
 	if(!g_virtualMachine)
 	{
@@ -186,7 +186,7 @@ void pause()
 	g_virtualMachine->Pause();
 }
 
-void resume()
+void resumeVm()
 {
 	if(!g_virtualMachine)
 	{
@@ -215,7 +215,7 @@ EMSCRIPTEN_BINDINGS(Play)
 	function("clearStats", &clearStats);
 	function("saveState", &saveState);
 	function("loadState", &loadState);
-	function("pause", &pause);
-	function("resume", &resume);
+	function("pauseVm", &pauseVm);
+	function("resumeVm", &resumeVm);
 	function("getStatus", &getStatus);
 }

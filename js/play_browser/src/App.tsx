@@ -422,11 +422,11 @@ function App() {
       const status = PlayModule.getStatus();
       // STATUS: RUNNING = 1, PAUSED = 2
       if (status === 1) { // RUNNING
-        PlayModule.pause();
+        PlayModule.pauseVm();
         setIsPaused(true);
         console.log("Emulator paused");
       } else if (status === 2) { // PAUSED
-        PlayModule.resume();
+        PlayModule.resumeVm();
         setIsPaused(false);
         console.log("Emulator resumed");
       }
