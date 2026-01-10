@@ -83,3 +83,6 @@ target_link_options(Play PRIVATE "-sWASM_BIGINT")
 target_link_options(Play PRIVATE "-sOFFSCREEN_FRAMEBUFFER=1")
 target_link_options(Play PRIVATE "-sENVIRONMENT=web,worker")
 target_link_options(Play PRIVATE "-sUSE_WEBGL2=1")
+# Preload GameConfig.xml into the virtual filesystem
+get_filename_component(GAMECONFIG_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../GameConfig.xml" ABSOLUTE)
+target_link_options(Play PRIVATE "--preload-file=${GAMECONFIG_PATH}@/GameConfig.xml")
