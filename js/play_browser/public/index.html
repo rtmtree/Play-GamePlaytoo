@@ -208,9 +208,11 @@
     if (urlParams.get('filterblack') === 'true') {
       (function() {
         let canvas, gl, overlayCanvas, overlayCtx, lastValidFrameImageData = null;
-        let checkInterval = null;
+        let isValidFrameInitialized = false;
+        let isCheckingFrames = false;
         const BLACK_THRESHOLD = 5; // Pixel value threshold for "black" (0-255)
         const SAMPLE_RATE = 20; // Check every Nth pixel for performance
+        const MIN_VALID_PIXEL_RATIO = 0.01; // At least 1% of sampled pixels must be non-black
         
         function initBlackFrameFilter() {
           canvas = document.getElementById('outputCanvas');
@@ -239,8 +241,10 @@
           overlayCanvas.height = canvas.height;
           overlayCanvas.style.cssText = window.getComputedStyle(canvas).cssText;
           overlayCanvas.style.position = 'absolute';
-          overlayCanvas.style.top = '0';
-          overlayCanvas.style.left = '0';
+          overlayCanvas.style.top = canvas.offsetTop + 'px';
+          overlayCanvas.style.left = canvas.offsetLeft + 'px';
+          overlayCanvas.style.width = canvas.offsetWidth + 'px';
+          overlayCanvas.style.height = canvas.offsetHeight + 'px';
           overlayCanvas.style.pointerEvents = 'none'; // Don't block interactions
           overlayCanvas.style.zIndex = '2'; // Above canvas but below UI
           overlayCanvas.style.display = 'none'; // Hidden by default
@@ -259,9 +263,28 @@
             return;
           }
   
-          // Sync overlay canvas size with main canvas when it resizes
+          // Sync overlay canvas size and position with main canvas when it resizes
           const resizeObserver = new ResizeObserver(() => {
+            if (!canvas || !overlayCanvas) return;
             const rect = canvas.getBoundingClientRect();
+            const parentRect = canvas.parentElement.getBoundingClientRect();
+            
+            // Update overlay canvas internal dimensions if main canvas dimensions changed
+            if (overlayCanvas.width !== canvas.width || overlayCanvas.height !== canvas.height) {
+              // Only resize if we have a valid frame to preserve it
+              if (lastValidFrameImageData && lastValidFrameImageData.width === canvas.width && lastValidFrameImageData.height === canvas.height) {
+                overlayCanvas.width = canvas.width;
+                overlayCanvas.height = canvas.height;
+                overlayCtx.putImageData(lastValidFrameImageData, 0, 0);
+              } else {
+                overlayCanvas.width = canvas.width;
+                overlayCanvas.height = canvas.height;
+              }
+            }
+            
+            // Update overlay canvas style to match visible size and position
+            overlayCanvas.style.top = (rect.top - parentRect.top) + 'px';
+            overlayCanvas.style.left = (rect.left - parentRect.left) + 'px';
             overlayCanvas.style.width = rect.width + 'px';
             overlayCanvas.style.height = rect.height + 'px';
           });
@@ -269,11 +292,19 @@
   
           // Function to check if frame is black (or mostly black)
           function isBlackFrame(pixels, width, height) {
+            if (!pixels || pixels.length === 0 || width <= 0 || height <= 0) {
+              return true; // Invalid frame is considered black
+            }
+            
             let nonBlackPixels = 0;
             const totalPixels = width * height;
-            const pixelsToCheck = Math.floor(totalPixels / SAMPLE_RATE);
-  
-            for (let i = 0; i < pixels.length; i += 4 * SAMPLE_RATE) {
+            const pixelsToCheck = Math.max(1, Math.floor(totalPixels / SAMPLE_RATE));
+            const minNonBlackPixels = Math.max(1, Math.floor(pixelsToCheck * MIN_VALID_PIXEL_RATIO));
+            
+            // Sample pixels across the frame
+            const step = Math.max(1, Math.floor(pixels.length / (pixelsToCheck * 4)));
+            
+            for (let i = 0; i < pixels.length; i += 4 * step) {
               const r = pixels[i];
               const g = pixels[i + 1];
               const b = pixels[i + 2];
@@ -281,23 +312,40 @@
               // If any color channel is above threshold, it's not black
               if (r > BLACK_THRESHOLD || g > BLACK_THRESHOLD || b > BLACK_THRESHOLD) {
                 nonBlackPixels++;
+                // Early exit if we've found enough non-black pixels
+                if (nonBlackPixels >= minNonBlackPixels) {
+                  return false;
+                }
               }
             }
   
-            // If less than 1% of sampled pixels are non-black, consider it black
-            return nonBlackPixels < pixelsToCheck * 0.01;
+            // If we didn't find enough non-black pixels, consider it black
+            return nonBlackPixels < minNonBlackPixels;
           }
   
           // Function to capture current frame from WebGL canvas
           function captureFrame() {
+            if (!gl || !canvas) return null;
+            
             try {
               const width = canvas.width;
               const height = canvas.height;
+              
+              if (width <= 0 || height <= 0) {
+                return null; // Invalid dimensions
+              }
+              
               const pixels = new Uint8Array(width * height * 4);
+              
+              // Check if WebGL context is still valid
+              if (gl.isContextLost()) {
+                return null;
+              }
               
               // readPixels might fail if framebuffer is incomplete or not ready
               gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
               
+              // Validate that we got actual pixel data (not all zeros due to error)
               return { pixels, width, height };
             } catch (e) {
               // Return null if readPixels fails
@@ -305,50 +353,99 @@
             }
           }
   
+          // Function to convert WebGL frame to ImageData with proper flipping
+          function convertFrameToImageData(frame) {
+            if (!frame || !frame.pixels || !frame.width || !frame.height) {
+              return null;
+            }
+            
+            const imageData = overlayCtx.createImageData(frame.width, frame.height);
+            
+            // WebGL readPixels returns data upside down, flip it
+            const data = frame.pixels;
+            const flipped = new Uint8ClampedArray(data.length);
+            const rowBytes = frame.width * 4;
+            
+            for (let y = 0; y < frame.height; y++) {
+              const srcRow = y * rowBytes;
+              const dstRow = (frame.height - 1 - y) * rowBytes;
+              flipped.set(data.subarray(srcRow, srcRow + rowBytes), dstRow);
+            }
+            
+            imageData.data.set(flipped);
+            return imageData;
+          }
+  
           // Function to check frame and handle black frames
           function checkFrame() {
-            if (!gl || !canvas) return;
-  
+            if (!gl || !canvas || isCheckingFrames) return;
+            
+            isCheckingFrames = true;
+            
             try {
               const frame = captureFrame();
-              if (!frame) return; // Skip if capture failed
+              if (!frame) {
+                isCheckingFrames = false;
+                return; // Skip if capture failed
+              }
               
-              if (isBlackFrame(frame.pixels, frame.width, frame.height)) {
+              // Validate frame dimensions match canvas
+              if (frame.width !== canvas.width || frame.height !== canvas.height) {
+                isCheckingFrames = false;
+                return; // Skip if dimensions don't match (resize in progress)
+              }
+              
+              const isBlack = isBlackFrame(frame.pixels, frame.width, frame.height);
+              
+              if (isBlack) {
                 // Frame is black - show the last valid frame on overlay
-                if (lastValidFrameImageData) {
-                  overlayCanvas.width = frame.width;
-                  overlayCanvas.height = frame.height;
+                if (lastValidFrameImageData && isValidFrameInitialized) {
+                  // Ensure overlay canvas dimensions match the stored frame
+                  if (overlayCanvas.width !== lastValidFrameImageData.width || 
+                      overlayCanvas.height !== lastValidFrameImageData.height) {
+                    overlayCanvas.width = lastValidFrameImageData.width;
+                    overlayCanvas.height = lastValidFrameImageData.height;
+                  }
+                  
                   overlayCtx.putImageData(lastValidFrameImageData, 0, 0);
                   overlayCanvas.style.display = 'block';
                 }
+                // If no valid frame yet, don't show overlay (avoid white screen)
               } else {
                 // Frame is valid - save it and hide overlay
-                const imageData = overlayCtx.createImageData(frame.width, frame.height);
+                const imageData = convertFrameToImageData(frame);
                 
-                // WebGL readPixels returns data upside down, flip it
-                const data = frame.pixels;
-                const flipped = new Uint8ClampedArray(data.length);
-                const rowBytes = frame.width * 4;
-                
-                for (let y = 0; y < frame.height; y++) {
-                  const srcRow = y * rowBytes;
-                  const dstRow = (frame.height - 1 - y) * rowBytes;
-                  flipped.set(data.subarray(srcRow, srcRow + rowBytes), dstRow);
+                if (imageData) {
+                  // Ensure overlay canvas dimensions match before storing
+                  if (overlayCanvas.width !== frame.width || overlayCanvas.height !== frame.height) {
+                    overlayCanvas.width = frame.width;
+                    overlayCanvas.height = frame.height;
+                  }
+                  
+                  // Store the frame
+                  lastValidFrameImageData = imageData;
+                  isValidFrameInitialized = true;
+                  
+                  // Hide overlay since we have a valid frame
+                  overlayCanvas.style.display = 'none';
                 }
-                
-                imageData.data.set(flipped);
-                lastValidFrameImageData = imageData;
-                overlayCanvas.style.display = 'none';
               }
             } catch (e) {
               // Silently handle errors (WebGL might not be ready yet)
               console.debug('Black frame filter check error:', e);
+            } finally {
+              isCheckingFrames = false;
             }
           }
   
           // Start checking frames periodically (check every ~2 frames for performance)
           let frameCount = 0;
           function frameChecker() {
+            if (!gl || !canvas) {
+              requestAnimationFrame(frameChecker);
+              return;
+            }
+            
             frameCount++;
             if (frameCount % 2 === 0) { // Check every 2 frames
               checkFrame();
@@ -357,9 +454,42 @@
           }
   
           // Wait a bit for the emulator to initialize, then start checking
+          // Also try to capture an initial valid frame
           setTimeout(() => {
-            requestAnimationFrame(frameChecker);
-            console.log('Black frame filter initialized');
+            // Try to get an initial valid frame before starting continuous checking
+            let initAttempts = 0;
+            const maxInitAttempts = 30; // Try for ~1 second (30 * ~33ms)
+            
+            function tryInitialFrame() {
+              if (initAttempts >= maxInitAttempts) {
+                requestAnimationFrame(frameChecker);
+                console.log('Black frame filter initialized (no initial frame captured)');
+                return;
+              }
+              
+              initAttempts++;
+              const frame = captureFrame();
+              
+              if (frame && !isBlackFrame(frame.pixels, frame.width, frame.height)) {
+                const imageData = convertFrameToImageData(frame);
+                if (imageData) {
+                  if (overlayCanvas.width !== frame.width || overlayCanvas.height !== frame.height) {
+                    overlayCanvas.width = frame.width;
+                    overlayCanvas.height = frame.height;
+                  }
+                  lastValidFrameImageData = imageData;
+                  isValidFrameInitialized = true;
+                  requestAnimationFrame(frameChecker);
+                  console.log('Black frame filter initialized with initial frame');
+                  return;
+                }
+              }
+              
+              // Try again in next frame
+              requestAnimationFrame(tryInitialFrame);
+            }
+            
+            requestAnimationFrame(tryInitialFrame);
           }, 2000);
         }
   
