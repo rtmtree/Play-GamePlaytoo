@@ -49,6 +49,8 @@ add_executable(Play
 	Ps2VmJs.cpp
 	Ps2VmJs.h
 )
+# Set output file name to Play300.js and Play300.wasm
+set_target_properties(Play PROPERTIES OUTPUT_NAME "Play300")
 target_link_libraries(Play PUBLIC ${UI_JS_PROJECT_LIBS})
 
 target_link_options(Play PRIVATE "--bind")
