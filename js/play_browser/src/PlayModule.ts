@@ -1,11 +1,8 @@
 // import Play from "./ram/dynamic/Play";
-// import PlayDynamic from "./ram/PlayDynamic";
-import Play300 from "./Play";
-// import Play300 from "./ram/Play300";
-// import Play300 from "./Play";
-// import Play300 from "./ram/Play";
-// import Play900 from "./ram/Play300";
-// import PlayDynamic from "./Play";
+// import PlayDyna from "./ram/PlayDyna";
+import Play from "./Play";
+// Note: Play300.js and Play600.js will be imported when they exist
+// For now, we'll use Play as fallback
 import DiscImageDevice from "./DiscImageDevice";
 
 export let PlayModule: any = null;
@@ -18,15 +15,132 @@ let module_overrides = {
     mainScriptUrlOrBlob: "",
 };
 
+// Parse URL parameter to get RAM setting
+function getRAMFromURL(): string | null {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('ram');
+}
+
+// Load Play module dynamically based on RAM setting
+async function loadPlayModule(ramParam: string | null): Promise<{ moduleFunction: any; jsFileName: string }> {
+    let playModuleFunction: any;
+    let playJSFileName: string;
+
+    console.log('Loading Play module with RAM setting:', ramParam);
+
+    // Select module and JS file based on ?ram= parameter
+    if (ramParam === '300') {
+        playJSFileName = 'Play300.js';
+        // try {
+            // Try dynamic import for Play300.js
+            // @ts-ignore - Play300.js may not exist yet, will fallback to Play.js
+            const Play300Module = await import('./Play300.js');
+            playModuleFunction = Play300Module.default || Play300Module;
+            if (!playModuleFunction || typeof playModuleFunction !== 'function') {
+                throw new Error('Play300 module not valid');
+            }
+            console.log('Successfully loaded Play300.js');
+        // } catch (error) {
+        //     // Fallback to default Play.js if Play300.js doesn't exist
+        //     console.warn('Play300.js not found, falling back to Play.js');
+        //     playModuleFunction = Play;
+        //     playJSFileName = 'Play.js';
+        // }
+    } else if (ramParam === '600') {
+        playJSFileName = 'Play600.js';
+        // try {
+            // Try dynamic import for Play600.js
+            // @ts-ignore - Play600.js may not exist yet, will fallback to Play.js
+            const Play600Module = await import('./Play600.js');
+            playModuleFunction = Play600Module.default || Play600Module;
+            if (!playModuleFunction || typeof playModuleFunction !== 'function') {
+                throw new Error('Play600 module not valid');
+            }
+            console.log('Successfully loaded Play600.js');
+        // } catch (error) {
+        //     // Fallback to default Play.js if Play600.js doesn't exist
+        //     console.warn('Play600.js not found, falling back to Play.js');
+        //     playModuleFunction = Play;
+        //     playJSFileName = 'Play.js';
+        // }
+    } else if (ramParam === '150') {
+        playJSFileName = 'Play150.js';
+        // try {
+        // Try dynamic import for Play150.js
+        // @ts-ignore - Play150.js may not exist yet, will fallback to Play.js
+        const Play150Module = await import('./' + playJSFileName);
+        playModuleFunction = Play150Module.default || Play150Module;
+        if (!playModuleFunction || typeof playModuleFunction !== 'function') {
+            throw new Error('Play150 module not valid');
+        }
+        console.log('Successfully loaded Play150.js');
+        // } catch (error) {
+        //     // Fallback to default Play.js if Play150.js doesn't exist
+        //     console.warn('Play150.js not found, falling back to Play.js');
+        //     playModuleFunction = Play;
+        //     playJSFileName = 'Play.js';
+        // }
+    } else if (ramParam === '900') {
+        playJSFileName = 'Play900.js';
+        try {
+            // Try dynamic import for Play900.js
+            // @ts-ignore - Play900.js may not exist yet, will fallback to Play.js
+            const Play900Module = await import('./Play900.js');
+            playModuleFunction = Play900Module.default || Play900Module;
+            if (!playModuleFunction || typeof playModuleFunction !== 'function') {
+                throw new Error('Play900 module not valid');
+            }
+            console.log('Successfully loaded Play900.js');
+        } catch (error) {
+            // Fallback to default Play.js if Play900.js doesn't exist
+            console.warn('Play900.js not found, falling back to Play.js');
+            playModuleFunction = Play;
+            playJSFileName = 'Play.js';
+        }
+    } else if (ramParam === 'dyna') {
+        playJSFileName = 'PlayDyna.js';
+        // try {
+        // Try dynamic import for PlayDyna.js
+        // @ts-ignore - PlayDyna.js may not exist yet, will fallback to Play.js
+        const PlayDynamicModule = await import('./' + playJSFileName);
+        playModuleFunction = PlayDynamicModule.default || PlayDynamicModule;
+        if (!playModuleFunction || typeof playModuleFunction !== 'function') {
+            throw new Error('PlayDyna module not valid');
+        }
+        //     console.log('Successfully loaded PlayDyna.js');
+        // } catch (error) {
+        //     // Fallback to default Play.js if PlayDyna.js doesn't exist
+        //     console.warn('PlayDyna.js not found, falling back to Play.js');
+        //     playModuleFunction = Play;
+        //     playJSFileName = 'Play.js';
+        // }
+    }
+    else {
+        // Default: use Play.js when ?ram= is not present or has other value
+        playModuleFunction = Play;
+        playJSFileName = 'Play.js';
+    }
+
+    return { moduleFunction: playModuleFunction, jsFileName: playJSFileName };
+}
+
 export let initPlayModule = async function () {
     // Log SharedArrayBuffer availability for debugging (not required since we disabled pthreads)
     console.log('SharedArrayBuffer available:', typeof SharedArrayBuffer !== 'undefined');
 
-    module_overrides.mainScriptUrlOrBlob = module_overrides.locateFile('Play.js');
+    // Get RAM setting from URL parameter
+    const ramParam = getRAMFromURL();
+
+    // Load the appropriate Play module based on RAM setting
+    const { moduleFunction: playModuleFunction, jsFileName: playJSFileName } = await loadPlayModule(ramParam);
+
+    console.log(`Loading Play WASM module with RAM setting: ${ramParam || 'default (not specified)'}, using ${playJSFileName}`);
+
+    module_overrides.mainScriptUrlOrBlob = module_overrides.locateFile(playJSFileName);
 
     try {
         console.log('Loading Play WASM module...');
-        PlayModule = await Play300(module_overrides);
+        PlayModule = await playModuleFunction(module_overrides);
         console.log('Play WASM module loaded successfully');
 
         // Verify WASM memory is initialized
