@@ -77,7 +77,7 @@ target_link_options(Play PRIVATE "-sALLOW_MEMORY_GROWTH=1")
 
 
 #target_link_options(Play PRIVATE "-sASSERTIONS=2")
-target_link_options(Play PRIVATE "-sEXPORT_NAME=Play")
+target_link_options(Play PRIVATE "-sEXPORT_NAME=PlayDyna")
 target_link_options(Play PRIVATE "-sPTHREAD_POOL_SIZE=2")
 target_link_options(Play PRIVATE "-sWASM_BIGINT")
 target_link_options(Play PRIVATE "-sOFFSCREEN_FRAMEBUFFER=1")
