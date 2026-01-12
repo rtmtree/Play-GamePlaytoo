@@ -62,11 +62,12 @@ target_link_options(Play PRIVATE "-sALLOW_TABLE_GROWTH")
 # Fixed memory mode to fix iOS 26.2 shared memory issues with pthreads + growable memory
 # See: https://github.com/emscripten-core/emscripten/issues/25905
 # With ALLOW_MEMORY_GROWTH=0, memory is fixed at INITIAL_MEMORY size (no growth)
-target_link_options(Play PRIVATE "-sALLOW_MEMORY_GROWTH=1")
+# target_link_options(Play PRIVATE "-sALLOW_MEMORY_GROWTH=1")
+target_link_options(Play PRIVATE "-sALLOW_MEMORY_GROWTH=0")
 
 # Testing showed ~300MB (314572800 bytes) is needed for stable operation
 # Lower values cause "unwind" errors during initVm due to insufficient memory
-# target_link_options(Play PRIVATE "-sINITIAL_MEMORY=314572800")
+target_link_options(Play PRIVATE "-sINITIAL_MEMORY=314572800")
 # # 600
 # target_link_options(Play PRIVATE "-sINITIAL_MEMORY=629145600")
 # 1000
@@ -77,7 +78,7 @@ target_link_options(Play PRIVATE "-sALLOW_MEMORY_GROWTH=1")
 
 
 #target_link_options(Play PRIVATE "-sASSERTIONS=2")
-target_link_options(Play PRIVATE "-sEXPORT_NAME=PlayDyna")
+target_link_options(Play PRIVATE "-sEXPORT_NAME=Play300")
 target_link_options(Play PRIVATE "-sPTHREAD_POOL_SIZE=2")
 target_link_options(Play PRIVATE "-sWASM_BIGINT")
 target_link_options(Play PRIVATE "-sOFFSCREEN_FRAMEBUFFER=1")
