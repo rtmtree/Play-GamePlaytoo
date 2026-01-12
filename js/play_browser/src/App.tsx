@@ -46,6 +46,11 @@ function App() {
     return !hasRomParam && !hasStateParam;
   });
 
+  // Check if ROM is loaded (either from URL parameter or file input)
+  const urlParams = new URLSearchParams(window.location.search);
+  const hasRomParam = urlParams.get('rom') !== null;
+  const isRomSelected = romLoaded || hasRomParam;
+
   // Check for ROM URL parameter and load it automatically
   // Wait for PlayModule to be ready before loading ROM
   useEffect(() => {
@@ -307,6 +312,8 @@ function App() {
       setSelectedRomFileName(file.name);
       dispatch(bootFile(file));
       setRomLoaded(true);
+      // Hide the collapsible controls panel when a new ROM is uploaded
+      setControlsExpanded(false);
     }
   }
 
@@ -382,6 +389,21 @@ function App() {
     }, 500); // Check every 500ms
     return () => clearInterval(interval);
   }, [romLoaded]);
+
+  // Auto-hide controls panel after 10 seconds when ROM is loaded
+  useEffect(() => {
+    if (!romLoaded || !controlsExpanded) {
+      return;
+    }
+    
+    const timer = setTimeout(() => {
+      setControlsExpanded(false);
+    }, 10000); // 10 seconds
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [romLoaded, controlsExpanded]);
 
   const handleLoadState = async function (event: ChangeEvent<HTMLInputElement>) {
     if (PlayModule === null) {
@@ -521,36 +543,38 @@ function App() {
         {/* Show file inputs only if no ROM/state in URL parameters */}
         {showFileInputs && (
           <>
-            {/* Toggle Button - Always visible when controls are available */}
-            <button
-              onClick={() => setControlsExpanded(!controlsExpanded)}
-              style={{
-                position: 'fixed',
-                bottom: '20px',
-                right: '20px',
-                width: '56px',
-                height: '56px',
-                borderRadius: '28px',
-                backgroundColor: controlsExpanded ? '#000000' : 'rgba(0, 0, 0, 0.6)',
-                color: 'white',
-                border: '3px solid rgba(255, 255, 255, 0.5)',
-                cursor: 'pointer',
-                zIndex: 1001,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '24px',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-                transition: 'all 0.2s ease',
-                WebkitTapHighlightColor: 'transparent',
-                touchAction: 'manipulation'
-              }}
-              onTouchStart={(e) => e.currentTarget.style.transform = 'scale(0.95)'}
-              onTouchEnd={(e) => e.currentTarget.style.transform = 'scale(1)'}
-              aria-label={controlsExpanded ? 'Hide controls' : 'Show controls'}
-            >
-              {controlsExpanded ? '✕' : '☰'}
-            </button>
+            {/* Toggle Button - Only visible when ROM is loaded */}
+            {isRomSelected && (
+              <button
+                onClick={() => setControlsExpanded(!controlsExpanded)}
+                style={{
+                  position: 'fixed',
+                  bottom: '20px',
+                  right: '20px',
+                  width: '56px',
+                  height: '56px',
+                  borderRadius: '28px',
+                  backgroundColor: controlsExpanded ? '#000000' : 'rgba(0, 0, 0, 0.6)',
+                  color: 'white',
+                  border: '3px solid rgba(255, 255, 255, 0.5)',
+                  cursor: 'pointer',
+                  zIndex: 1001,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '24px',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+                  transition: 'all 0.2s ease',
+                  WebkitTapHighlightColor: 'transparent',
+                  touchAction: 'manipulation'
+                }}
+                onTouchStart={(e) => e.currentTarget.style.transform = 'scale(0.95)'}
+                onTouchEnd={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                aria-label={controlsExpanded ? 'Hide controls' : 'Show controls'}
+              >
+                {controlsExpanded ? '↑' : '☰'}
+              </button>
+            )}
 
             {/* Collapsible Controls Panel */}
             <div
@@ -613,7 +637,7 @@ function App() {
                   onTouchStart={(e) => (e.currentTarget.style.opacity = '0.7')}
                   onTouchEnd={(e) => (e.currentTarget.style.opacity = '1')}
                 >
-                  {selectedRomFileName || 'Select the ROM file from any location (e.g. On my iPhone/iPad → GamePlaytoo → roms)'}
+                  {selectedRomFileName || 'Select a ROM file from any location (e.g. On my iPhone/iPad → GamePlaytoo → roms)'}
                 </button>
               </div>
               <div style={{
@@ -705,6 +729,9 @@ function App() {
           </>
         )
         }
+        
+       
+        
         {/* <Stats /> */}
       </div >
     );
