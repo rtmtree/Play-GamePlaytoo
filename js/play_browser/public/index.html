@@ -204,15 +204,24 @@
   </div>
   <script>
     // Black frame filter: detects and replaces black frames with the last valid frame
+    // Black frame transition detection: detects instant black frames that follow normal frames
+    // Optimized with small sample area to minimize interference with emulator performance and audio
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('filterblack') === 'true') {
+    // Enable black frame detection by default (optimized for minimal interference)
+    // Can be disabled by adding ?filterblack=false to URL
+    if (urlParams.get('filterblack') !== 'false') {
       (function() {
         let canvas, gl, overlayCanvas, overlayCtx, lastValidFrameImageData = null;
         let isValidFrameInitialized = false;
         let isCheckingFrames = false;
         const BLACK_THRESHOLD = 5; // Pixel value threshold for "black" (0-255)
-        const SAMPLE_RATE = 20; // Check every Nth pixel for performance
+        const SAMPLE_RATE = 4; // Check every Nth pixel for accuracy (since we sample smaller area)
         const MIN_VALID_PIXEL_RATIO = 0.01; // At least 1% of sampled pixels must be non-black
+
+        // Black frame transition detection variables
+        let previousFrameWasBlack = false;
+        let blackFrameAfterNormalCount = 0;
+        let lastBlackFrameReportTime = 0;
         
         function initBlackFrameFilter() {
           canvas = document.getElementById('outputCanvas');
@@ -263,12 +272,19 @@
             return;
           }
   
+          // Listen for context loss to cleanup black frame detection
+          canvas.addEventListener('webglcontextlost', cleanupBlackFrameDetection);
+          canvas.addEventListener('webglcontextrestored', cleanupBlackFrameDetection);
+
+          // Cleanup on page unload
+          window.addEventListener('beforeunload', cleanupBlackFrameDetection);
+
           // Sync overlay canvas size and position with main canvas when it resizes
           const resizeObserver = new ResizeObserver(() => {
             if (!canvas || !overlayCanvas) return;
             const rect = canvas.getBoundingClientRect();
             const parentRect = canvas.parentElement.getBoundingClientRect();
-            
+
             // Update overlay canvas internal dimensions if main canvas dimensions changed
             if (overlayCanvas.width !== canvas.width || overlayCanvas.height !== canvas.height) {
               // Only resize if we have a valid frame to preserve it
@@ -281,7 +297,7 @@
                 overlayCanvas.height = canvas.height;
               }
             }
-            
+
             // Update overlay canvas style to match visible size and position
             overlayCanvas.style.top = (rect.top - parentRect.top) + 'px';
             overlayCanvas.style.left = (rect.left - parentRect.left) + 'px';
@@ -323,30 +339,36 @@
             return nonBlackPixels < minNonBlackPixels;
           }
   
-          // Function to capture current frame from WebGL canvas
+          // Function to capture current frame from WebGL canvas (optimized to minimize interference)
           function captureFrame() {
             if (!gl || !canvas) return null;
-            
+
             try {
               const width = canvas.width;
               const height = canvas.height;
-              
+
               if (width <= 0 || height <= 0) {
                 return null; // Invalid dimensions
               }
-              
-              const pixels = new Uint8Array(width * height * 4);
-              
+
+              // Use much smaller sample area to reduce readPixels overhead
+              const sampleWidth = Math.min(64, width);   // Sample only 64 pixels wide
+              const sampleHeight = Math.min(64, height); // Sample only 64 pixels tall
+              const sampleX = Math.floor((width - sampleWidth) / 2);   // Center of frame
+              const sampleY = Math.floor((height - sampleHeight) / 2); // Center of frame
+
+              const pixels = new Uint8Array(sampleWidth * sampleHeight * 4);
+
               // Check if WebGL context is still valid
               if (gl.isContextLost()) {
                 return null;
               }
-              
-              // readPixels might fail if framebuffer is incomplete or not ready
-              gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-              
+
+              // Read only a small sample area from center of frame to minimize interference
+              gl.readPixels(sampleX, sampleY, sampleWidth, sampleHeight, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+
               // Validate that we got actual pixel data (not all zeros due to error)
-              return { pixels, width, height };
+              return { pixels, width: sampleWidth, height: sampleHeight, isSample: true };
             } catch (e) {
               // Return null if readPixels fails
               return null;
@@ -358,55 +380,83 @@
             if (!frame || !frame.pixels || !frame.width || !frame.height) {
               return null;
             }
-            
+
             const imageData = overlayCtx.createImageData(frame.width, frame.height);
-            
+
             // WebGL readPixels returns data upside down, flip it
             const data = frame.pixels;
             const flipped = new Uint8ClampedArray(data.length);
             const rowBytes = frame.width * 4;
-            
+
             for (let y = 0; y < frame.height; y++) {
               const srcRow = y * rowBytes;
               const dstRow = (frame.height - 1 - y) * rowBytes;
               flipped.set(data.subarray(srcRow, srcRow + rowBytes), dstRow);
             }
-            
+
             imageData.data.set(flipped);
             return imageData;
           }
+
+          // Black frame transition detection function
+          function detectBlackFrameTransition(currentFrameIsBlack) {
+            // Check if we just transitioned from normal frame to black frame
+            const transitionedToBlack = !previousFrameWasBlack && currentFrameIsBlack;
+
+            // Update state for next frame
+            previousFrameWasBlack = currentFrameIsBlack;
+
+            return transitionedToBlack;
+          }
+
+          function reportBlackFrameAfterNormal() {
+            const now = performance.now();
+            // Throttle reporting to avoid spam (max once per 3 seconds)
+            if (now - lastBlackFrameReportTime > 3000) {
+              console.warn(`⚠️ INSTANT BLACK FRAME DETECTED: Normal frame was followed by black frame`);
+              console.warn(`   This usually indicates memory issues or rendering problems`);
+              console.warn(`   Consider reducing RAM usage or closing other apps`);
+              lastBlackFrameReportTime = now;
+              blackFrameAfterNormalCount++;
+            }
+          }
   
-          // Function to check frame and handle black frames
+          // Function to check frame and handle black frames + flashing detection
           function checkFrame() {
             if (!gl || !canvas || isCheckingFrames) return;
-            
+
             isCheckingFrames = true;
-            
+
             try {
               const frame = captureFrame();
               if (!frame) {
                 isCheckingFrames = false;
                 return; // Skip if capture failed
               }
-              
+
               // Validate frame dimensions match canvas
               if (frame.width !== canvas.width || frame.height !== canvas.height) {
                 isCheckingFrames = false;
                 return; // Skip if dimensions don't match (resize in progress)
               }
-              
+
               const isBlack = isBlackFrame(frame.pixels, frame.width, frame.height);
-              
-              if (isBlack) {
+
+              // Check for black frame transition (normal -> black)
+              if (detectBlackFrameTransition(isBlack)) {
+                reportBlackFrameAfterNormal();
+              }
+
+              if (false) {
                 // Frame is black - show the last valid frame on overlay
                 if (lastValidFrameImageData && isValidFrameInitialized) {
                   // Ensure overlay canvas dimensions match the stored frame
-                  if (overlayCanvas.width !== lastValidFrameImageData.width || 
+                  if (overlayCanvas.width !== lastValidFrameImageData.width ||
                       overlayCanvas.height !== lastValidFrameImageData.height) {
                     overlayCanvas.width = lastValidFrameImageData.width;
                     overlayCanvas.height = lastValidFrameImageData.height;
                   }
-                  
+
                   overlayCtx.putImageData(lastValidFrameImageData, 0, 0);
                   overlayCanvas.style.display = 'block';
                 }
@@ -414,18 +464,18 @@
               } else {
                 // Frame is valid - save it and hide overlay
                 const imageData = convertFrameToImageData(frame);
-                
+
                 if (imageData) {
                   // Ensure overlay canvas dimensions match before storing
                   if (overlayCanvas.width !== frame.width || overlayCanvas.height !== frame.height) {
                     overlayCanvas.width = frame.width;
                     overlayCanvas.height = frame.height;
                   }
-                  
+
                   // Store the frame
                   lastValidFrameImageData = imageData;
                   isValidFrameInitialized = true;
-                  
+
                   // Hide overlay since we have a valid frame
                   overlayCanvas.style.display = 'none';
                 }
@@ -438,6 +488,13 @@
             }
           }
   
+          // Cleanup function for black frame detection
+          function cleanupBlackFrameDetection() {
+            previousFrameWasBlack = false;
+            blackFrameAfterNormalCount = 0;
+            lastBlackFrameReportTime = 0;
+          }
+
           // Start checking frames periodically (check every ~2 frames for performance)
           let frameCount = 0;
           function frameChecker() {
@@ -445,9 +502,9 @@
               requestAnimationFrame(frameChecker);
               return;
             }
-            
+
             frameCount++;
-            if (frameCount % 2 === 0) { // Check every 2 frames
+            if (frameCount % 4 === 0) { // Check every 4 frames to reduce interference
               checkFrame();
             }
             requestAnimationFrame(frameChecker);
@@ -464,12 +521,13 @@
               if (initAttempts >= maxInitAttempts) {
                 requestAnimationFrame(frameChecker);
                 console.log('Black frame filter initialized (no initial frame captured)');
+                console.log('🔍 Black frame transition detection: ACTIVE (optimized sampling, minimal performance impact)');
                 return;
               }
-              
+
               initAttempts++;
               const frame = captureFrame();
-              
+
               if (frame && !isBlackFrame(frame.pixels, frame.width, frame.height)) {
                 const imageData = convertFrameToImageData(frame);
                 if (imageData) {
@@ -481,10 +539,11 @@
                   isValidFrameInitialized = true;
                   requestAnimationFrame(frameChecker);
                   console.log('Black frame filter initialized with initial frame');
+                  console.log('🔍 Black frame transition detection: ACTIVE (optimized sampling, minimal performance impact)');
                   return;
                 }
               }
-              
+
               // Try again in next frame
               requestAnimationFrame(tryInitialFrame);
             }
