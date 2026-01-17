@@ -47,18 +47,17 @@ extern "C" void initVm()
 	attr.minorVersion = 0;
 	attr.alpha = false;
 	attr.explicitSwapControl = true;
-	// With offscreen canvas, use nullptr to create context on the transferred canvas
-	g_context = emscripten_webgl_create_context(nullptr, &attr);
+	g_context = emscripten_webgl_create_context("#outputCanvas", &attr);
 	if(g_context <= 0)
 	{
 		// Try WebGL 1.0 as fallback if WebGL 2.0 fails
 		attr.majorVersion = 1;
 		attr.minorVersion = 0;
-		g_context = emscripten_webgl_create_context(nullptr, &attr);
+		g_context = emscripten_webgl_create_context("#outputCanvas", &attr);
 		if(g_context <= 0)
 		{
 			printf("ERROR: Failed to create WebGL context. Error code: %lu\n", static_cast<unsigned long>(g_context));
-			printf("Offscreen canvas may not be available or WebGL is not supported.\n");
+			printf("Canvas #outputCanvas may not exist or WebGL is not available.\n");
 			// Throw an exception that JavaScript can catch
 			emscripten_throw_string("WebGL context creation failed");
 			return;
