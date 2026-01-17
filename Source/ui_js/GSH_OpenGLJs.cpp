@@ -23,4 +23,5 @@ void CGSH_OpenGLJs::ReleaseImpl()
 
 void CGSH_OpenGLJs::PresentBackbuffer()
 {
+	emscripten_webgl_commit_frame();
 }

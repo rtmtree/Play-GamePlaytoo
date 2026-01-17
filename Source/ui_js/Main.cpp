@@ -46,6 +46,7 @@ extern "C" void initVm()
 	attr.majorVersion = 2;
 	attr.minorVersion = 0;
 	attr.alpha = false;
+	attr.explicitSwapControl = true;
 	g_context = emscripten_webgl_create_context("#outputCanvas", &attr);
 	if(g_context <= 0)
 	{
