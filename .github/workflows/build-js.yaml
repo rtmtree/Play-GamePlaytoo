@@ -42,6 +42,6 @@ jobs:
       with:
         name: play-wasm-files
         path: |
-          build_cmake/build/wasm-ninja/Source/ui_js/Release/Play300.js
-          build_cmake/build/wasm-ninja/Source/ui_js/Release/Play300.wasm
+          build_cmake/build/wasm-ninja/Source/ui_js/Release/PlayDyna.js
+          build_cmake/build/wasm-ninja/Source/ui_js/Release/PlayDyna.wasm
         retention-days: 30
