@@ -84,7 +84,7 @@ target_link_options(Play PRIVATE "-sEXPORT_NAME=Play900")
 target_link_options(Play PRIVATE "-sPTHREAD_POOL_SIZE=2")
 target_link_options(Play PRIVATE "-sWASM_BIGINT")
 target_link_options(Play PRIVATE "-sOFFSCREENCANVAS_SUPPORT=1")
-target_link_options(Play PRIVATE "-sOFFSCREENCANVASES_TO_PTHREAD=1")
+target_link_options(Play PRIVATE "-sOFFSCREENCANVASES_TO_PTHREAD=#outputCanvas")
 target_link_options(Play PRIVATE "-sENVIRONMENT=web,worker")
 target_link_options(Play PRIVATE "-sUSE_WEBGL2=1")
 # Preload GameConfig.xml into the virtual filesystem
