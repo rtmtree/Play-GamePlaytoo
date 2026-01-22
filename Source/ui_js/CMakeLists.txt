@@ -90,7 +90,6 @@ target_link_options(Play PRIVATE "-sUSE_WEBGL2=1")
 target_link_options(Play PRIVATE "-sGL_POOL_TEMP_BUFFERS=0")
 target_link_options(Play PRIVATE "-sGL_TRACK_ERRORS=0")
 target_link_options(Play PRIVATE "-sGL_SUPPORT_AUTOMATIC_ENABLE_EXTENSIONS=0")
-target_link_options(Play PRIVATE "-sGL_SHADER_CACHE=1")
 # Preload GameConfig.xml into the virtual filesystem
 # get_filename_component(GAMECONFIG_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../GameConfig.xml" ABSOLUTE)
 # target_link_options(Play PRIVATE "--preload-file=${GAMECONFIG_PATH}@/GameConfig.xml")
