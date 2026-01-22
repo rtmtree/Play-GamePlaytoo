@@ -64,12 +64,12 @@ target_link_options(Play PRIVATE "-sALLOW_TABLE_GROWTH")
 # Fixed memory mode to fix iOS 26.2 shared memory issues with pthreads + growable memory
 # See: https://github.com/emscripten-core/emscripten/issues/25905
 # With ALLOW_MEMORY_GROWTH=0, memory is fixed at INITIAL_MEMORY size (no growth)
-target_link_options(Play PRIVATE "-sALLOW_MEMORY_GROWTH=1")
-# target_link_options(Play PRIVATE "-sALLOW_MEMORY_GROWTH=0")
+# target_link_options(Play PRIVATE "-sALLOW_MEMORY_GROWTH=1")
+target_link_options(Play PRIVATE "-sALLOW_MEMORY_GROWTH=0")
 
 # Testing showed ~300MB (314572800 bytes) is needed for stable operation
 # Lower values cause "unwind" errors during initVm due to insufficient memory
-# target_link_options(Play PRIVATE "-sINITIAL_MEMORY=314572800")
+target_link_options(Play PRIVATE "-sINITIAL_MEMORY=314572800")
 # # 600
 # target_link_options(Play PRIVATE "-sINITIAL_MEMORY=629145600")
 # 1000
@@ -81,11 +81,16 @@ target_link_options(Play PRIVATE "-sALLOW_MEMORY_GROWTH=1")
 
 #target_link_options(Play PRIVATE "-sASSERTIONS=2")
 target_link_options(Play PRIVATE "-sEXPORT_NAME=PlayDyna")
-target_link_options(Play PRIVATE "-sPTHREAD_POOL_SIZE=2")
+target_link_options(Play PRIVATE "-sPTHREAD_POOL_SIZE=4")
 target_link_options(Play PRIVATE "-sWASM_BIGINT")
 target_link_options(Play PRIVATE "-sOFFSCREEN_FRAMEBUFFER=1")
 target_link_options(Play PRIVATE "-sENVIRONMENT=web,worker")
 target_link_options(Play PRIVATE "-sUSE_WEBGL2=1")
+# WebGL performance optimizations
+target_link_options(Play PRIVATE "-sGL_POOL_TEMP_BUFFERS=0")
+target_link_options(Play PRIVATE "-sGL_TRACK_ERRORS=0")
+target_link_options(Play PRIVATE "-sGL_SUPPORT_AUTOMATIC_ENABLE_EXTENSIONS=0")
+target_link_options(Play PRIVATE "-sGL_SHADER_CACHE=1")
 # Preload GameConfig.xml into the virtual filesystem
 # get_filename_component(GAMECONFIG_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../GameConfig.xml" ABSOLUTE)
 # target_link_options(Play PRIVATE "--preload-file=${GAMECONFIG_PATH}@/GameConfig.xml")
