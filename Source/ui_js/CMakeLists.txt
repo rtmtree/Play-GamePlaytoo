@@ -81,7 +81,7 @@ target_link_options(Play PRIVATE "-sALLOW_MEMORY_GROWTH=0")
 target_link_options(Play PRIVATE "-sINITIAL_MEMORY=314572800")
 # # 600
 # target_link_options(Play PRIVATE "-sINITIAL_MEMORY=629145600")
-1000
+#1000
 target_link_options(Play PRIVATE "-sINITIAL_MEMORY=943718400")
 # 150
 # target_link_options(Play PRIVATE "-sINITIAL_MEMORY=157286400")
