@@ -4,14 +4,13 @@
 #include "../GsDebuggerInterface.h"
 #include "../GsPixelFormats.h"
 #include <webgpu/webgpu_cpp.h>
+#include <map>
+
+#define FRAMEBUFFER_HEIGHT 1024
 
 class CGSH_WebGPU : public CGSHandler, public CGsDebuggerInterface
 {
 public:
-	// ... (rest of public methods)
-	static const unsigned int g_shaderClampModes[CLAMP_MODE_MAX];
-	static const unsigned int g_alphaTestInverse[ALPHA_TEST_MAX];
-
 	enum
 	{
 		TEXTURE_CLAMP_MODE_STD = 0,
@@ -20,6 +19,38 @@ public:
 		TEXTURE_CLAMP_MODE_REGION_REPEAT = 3,
 		TEXTURE_CLAMP_MODE_REGION_REPEAT_SIMPLE = 4,
 	};
+
+	struct SHADERCAPS : public convertible<uint32>
+	{
+		unsigned int texSourceMode : 2; // 0 - None, 1 - Std, 2 - Idx4, 3 - Idx8
+		unsigned int hasFog : 1;
+		unsigned int hasAlphaTest : 1;
+		unsigned int alphaTestMethod : 3;
+		unsigned int alphaFailMethod : 2;
+		unsigned int hasDestAlphaTest : 1;
+		unsigned int destAlphaTestRef : 1;
+		unsigned int hasAlphaBlend : 1;
+		unsigned int alphaBlendA : 2;
+		unsigned int alphaBlendB : 2;
+		unsigned int alphaBlendC : 2;
+		unsigned int alphaBlendD : 2;
+		unsigned int texClampS : 3;
+		unsigned int texClampT : 3;
+		unsigned int texHasAlpha : 1;
+		unsigned int texBlackIsTransparent : 1;
+		unsigned int texFunction : 2;
+		unsigned int texUseAlphaExpansion : 1;
+		unsigned int texBilinearFilter : 1;
+
+		bool operator<(const SHADERCAPS& other) const
+		{
+			return static_cast<uint32>(*this) < static_cast<uint32>(other);
+		}
+	};
+
+	static const unsigned int g_shaderClampModes[CLAMP_MODE_MAX];
+	static const unsigned int g_alphaTestInverse[ALPHA_TEST_MAX];
+
 	CGSH_WebGPU();
 	virtual ~CGSH_WebGPU();
 
@@ -61,34 +92,6 @@ protected:
 protected:
 	wgpu::RenderPipeline GetPipelineFromCaps(const SHADERCAPS&);
 	std::string GenerateShader(const SHADERCAPS&);
-
-	struct SHADERCAPS
-	{
-		unsigned int texSourceMode : 2; // 0 - None, 1 - Std, 2 - Idx4, 3 - Idx8
-		unsigned int hasFog : 1;
-		unsigned int hasAlphaTest : 1;
-		unsigned int alphaTestMethod : 3;
-		unsigned int alphaFailMethod : 2;
-		unsigned int hasDestAlphaTest : 1;
-		unsigned int destAlphaTestRef : 1;
-		unsigned int hasAlphaBlend : 1;
-		unsigned int alphaBlendA : 2;
-		unsigned int alphaBlendB : 2;
-		unsigned int alphaBlendC : 2;
-		unsigned int alphaBlendD : 2;
-		unsigned int texClampS : 3;
-		unsigned int texClampT : 3;
-		unsigned int texHasAlpha : 1;
-		unsigned int texBlackIsTransparent : 1;
-		unsigned int texFunction : 2;
-		unsigned int texUseAlphaExpansion : 1;
-		unsigned int texBilinearFilter : 1;
-
-		bool operator<(const SHADERCAPS& other) const
-		{
-			return memcmp(this, &other, sizeof(SHADERCAPS)) < 0;
-		}
-	};
 
 	struct VERTEXPARAMS
 	{
@@ -215,6 +218,6 @@ private:
 	uint32 m_vtxCount = 0;
 	bool m_pendingPrim = false;
 	uint64 m_pendingPrimValue = 0;
-	PRMODE m_primitiveMode;
+	PRIM m_primitiveMode;
 	unsigned int m_primitiveType = PRIM_INVALID;
 };

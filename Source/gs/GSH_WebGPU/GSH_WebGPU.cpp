@@ -189,12 +189,24 @@ void CGSH_WebGPU::InitializeImpl()
 	m_currentTextureView = m_dummyTexture.view;
 
 	uint32 white = 0xFFFFFFFF;
-	wgpu::ImageCopyTexture dest = {};
+	wgpu::TexelCopyTextureInfo dest = {};
 	dest.texture = m_dummyTexture.texture;
-	wgpu::TextureDataLayout layout = {};
+	wgpu::TexelCopyBufferLayout layout = {};
 	layout.bytesPerRow = 4;
 	layout.rowsPerImage = 1;
 	m_queue.WriteTexture(&dest, &white, 4, &layout, &texDesc.size);
+}
+
+void CGSH_WebGPU::ReleaseImpl()
+{
+}
+
+void CGSH_WebGPU::ResetImpl()
+{
+}
+
+void CGSH_WebGPU::NotifyPreferencesChangedImpl()
+{
 }
 
 wgpu::RenderPipeline CGSH_WebGPU::GetPipelineFromCaps(const SHADERCAPS& caps)
@@ -203,7 +215,7 @@ wgpu::RenderPipeline CGSH_WebGPU::GetPipelineFromCaps(const SHADERCAPS& caps)
 	if(it != m_pipelines.end()) return it->second;
 
 	std::string shaderSource = GenerateShader(caps);
-	wgpu::ShaderModuleWGSLDescriptor wgslDesc = {};
+	wgpu::ShaderSourceWGSL wgslDesc = {};
 	wgslDesc.code = shaderSource.c_str();
 
 	wgpu::ShaderModuleDescriptor smDesc = {};
@@ -385,14 +397,14 @@ void CGSH_WebGPU::SetupTexture(uint64 primReg, uint64 tex0Reg, uint64 tex1Reg, u
 	m_fragmentParams.texelSize[0] = 1.0f / m_fragmentParams.textureSize[0];
 	m_fragmentParams.texelSize[1] = 1.0f / m_fragmentParams.textureSize[1];
 
-	m_fragmentParams.clampMin[0] = static_cast<float>(clamp.nMinU);
-	m_fragmentParams.clampMin[1] = static_cast<float>(clamp.nMinV);
-	m_fragmentParams.clampMax[0] = static_cast<float>(clamp.nMaxU);
-	m_fragmentParams.clampMax[1] = static_cast<float>(clamp.nMaxV);
+	m_fragmentParams.clampMin[0] = static_cast<float>(clamp.nMINU);
+	m_fragmentParams.clampMin[1] = static_cast<float>(clamp.GetMinV());
+	m_fragmentParams.clampMax[0] = static_cast<float>(clamp.nMAXU);
+	m_fragmentParams.clampMax[1] = static_cast<float>(clamp.nMAXV);
 
 	m_fragmentParams.texA0 = static_cast<float>(tex0.nColorComp);
 
-	auto it = m_textureCache.find(tex0.GetBasePtr());
+	auto it = m_textureCache.find(tex0.GetBufPtr());
 	if(it != m_textureCache.end())
 	{
 		m_currentTextureView = it->second.view;
@@ -448,8 +460,8 @@ void CGSH_WebGPU::FillShaderCapsFromTexture(SHADERCAPS& shaderCaps, uint64 tex0R
 	clampMode[0] = g_shaderClampModes[clamp.nWMS];
 	clampMode[1] = g_shaderClampModes[clamp.nWMT];
 
-	if(clampMode[0] == TEXTURE_CLAMP_MODE_REGION_REPEAT && CanRegionRepeatClampModeSimplified(clamp.nMinU, clamp.nMaxU)) clampMode[0] = TEXTURE_CLAMP_MODE_REGION_REPEAT_SIMPLE;
-	if(clampMode[1] == TEXTURE_CLAMP_MODE_REGION_REPEAT && CanRegionRepeatClampModeSimplified(clamp.nMinV, clamp.nMaxV)) clampMode[1] = TEXTURE_CLAMP_MODE_REGION_REPEAT_SIMPLE;
+	if(clampMode[0] == TEXTURE_CLAMP_MODE_REGION_REPEAT && CanRegionRepeatClampModeSimplified(clamp.nMINU, clamp.nMAXU)) clampMode[0] = TEXTURE_CLAMP_MODE_REGION_REPEAT_SIMPLE;
+	if(clampMode[1] == TEXTURE_CLAMP_MODE_REGION_REPEAT && CanRegionRepeatClampModeSimplified(clamp.GetMinV(), clamp.nMAXV)) clampMode[1] = TEXTURE_CLAMP_MODE_REGION_REPEAT_SIMPLE;
 
 	shaderCaps.texClampS = clampMode[0];
 	shaderCaps.texClampT = clampMode[1];
@@ -529,7 +541,7 @@ bool CGSH_WebGPU::CanRegionRepeatClampModeSimplified(uint32 clampMin, uint32 cla
 
 void CGSH_WebGPU::ProcessPrim(uint64 value)
 {
-	m_primitiveMode = make_convertible<PRMODE>(value);
+	m_primitiveMode = make_convertible<PRIM>(value);
 	m_primitiveType = m_primitiveMode.nType;
 	m_vtxCount = 0;
 }

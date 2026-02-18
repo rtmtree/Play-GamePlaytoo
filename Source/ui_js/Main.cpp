@@ -282,7 +282,7 @@ EMSCRIPTEN_BINDINGS(Play)
 	using namespace emscripten;
 
 	function("initVm", &initVm);
-	function("initVmWebGPU", &initVmWebGPU);
+	function("initVmWebGPU", &initVmWebGPU, allow_raw_pointers());
 	function("bootElf", &bootElf);
 	function("bootDiscImage", &bootDiscImage);
 	function("getFrames", &getFrames);

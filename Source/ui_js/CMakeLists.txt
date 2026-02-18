@@ -60,13 +60,12 @@ add_executable(Play
 	Ps2VmJs.h
 )
 # Set output file name to Play900.js and Play900.wasm
-set_target_properties(Play PROPERTIES OUTPUT_NAME "PlayDyna")
+set_target_properties(Play PROPERTIES OUTPUT_NAME "Play")
 target_link_libraries(Play PUBLIC ${UI_JS_PROJECT_LIBS})
 
 target_link_options(Play PRIVATE "--bind")
 target_link_options(Play PRIVATE "-sMODULARIZE=1")
 target_link_options(Play PRIVATE "-sEXPORT_ES6=1")
-target_link_options(Play PRIVATE "-sUSE_ES6_IMPORT_META=0")
 target_link_options(Play PRIVATE "-sEXPORTED_FUNCTIONS=['_main', '_initVm', '_EmptyBlockHandler', '_MemoryUtils_GetByteProxy', '_MemoryUtils_GetHalfProxy', '_MemoryUtils_GetWordProxy', '_MemoryUtils_GetDoubleProxy', '_MemoryUtils_SetByteProxy', '_MemoryUtils_SetHalfProxy', '_MemoryUtils_SetWordProxy', '_MemoryUtils_SetDoubleProxy', '_LWL_Proxy', '_LWR_Proxy', '_LDL_Proxy', '_LDR_Proxy', '_SWL_Proxy', '_SWR_Proxy', '_SDL_Proxy', '_SDR_Proxy']")
 target_link_options(Play PRIVATE "-sEXPORTED_RUNTIME_METHODS=['ccall', 'FS']")
 target_link_options(Play PRIVATE "-sFORCE_FILESYSTEM")
@@ -90,13 +89,13 @@ target_link_options(Play PRIVATE "-sINITIAL_MEMORY=314572800")
 
 
 #target_link_options(Play PRIVATE "-sASSERTIONS=2")
-target_link_options(Play PRIVATE "-sEXPORT_NAME=PlayDyna")
+target_link_options(Play PRIVATE "-sEXPORT_NAME=Play")
 target_link_options(Play PRIVATE "-sPTHREAD_POOL_SIZE=4")
 target_link_options(Play PRIVATE "-sWASM_BIGINT")
 target_link_options(Play PRIVATE "-sOFFSCREEN_FRAMEBUFFER=1")
 target_link_options(Play PRIVATE "-sENVIRONMENT=web,worker")
 target_link_options(Play PRIVATE "-sUSE_WEBGL2=1")
-target_link_options(Play PRIVATE "-sUSE_WEBGPU=1")
+target_link_options(Play PRIVATE "--use-port=emdawnwebgpu")
 # WebGL performance optimizations
 target_link_options(Play PRIVATE "-sGL_POOL_TEMP_BUFFERS=0")
 target_link_options(Play PRIVATE "-sGL_TRACK_ERRORS=0")

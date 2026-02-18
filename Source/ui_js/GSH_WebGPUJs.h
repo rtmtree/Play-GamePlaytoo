@@ -2,7 +2,6 @@
 
 #include "gs/GSH_WebGPU/GSH_WebGPU.h"
 #include <emscripten/html5.h>
-#include <emscripten/html5_webgpu.h>
 
 class CGSH_WebGPUJs : public CGSH_WebGPU
 {

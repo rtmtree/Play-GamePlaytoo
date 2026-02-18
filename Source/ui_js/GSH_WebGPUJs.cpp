@@ -14,10 +14,15 @@ CGSH_WebGPU::FactoryFunction CGSH_WebGPUJs::GetFactoryFunction(WGPUDevice device
 
 void CGSH_WebGPUJs::InitializeImpl()
 {
-	m_surface = wgpu::Surface::Acquire(emscripten_webgpu_get_surface("#outputCanvas"));
+	m_instance = wgpu::CreateInstance();
+	wgpu::EmscriptenSurfaceSourceCanvasHTMLSelector canvasDesc = {};
+	canvasDesc.selector = "#outputCanvas";
+	wgpu::SurfaceDescriptor surfaceDesc = {};
+	surfaceDesc.nextInChain = &canvasDesc;
+	m_surface = m_instance.CreateSurface(&surfaceDesc);
 
 	wgpu::SurfaceConfiguration config = {};
-	config.device = m_device;
+	config.device = this->CGSH_WebGPU::m_device;
 	config.format = m_swapChainFormat;
 	config.usage = wgpu::TextureUsage::RenderAttachment;
 	config.alphaMode = wgpu::CompositeAlphaMode::Auto;
