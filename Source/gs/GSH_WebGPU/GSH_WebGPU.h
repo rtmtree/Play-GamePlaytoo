@@ -88,6 +88,7 @@ protected:
 	void FlipImpl(const DISPLAY_INFO&) override;
 
 	virtual void PresentBackbuffer() = 0;
+	virtual void ConfigureSurface() {}
 
 protected:
 	wgpu::RenderPipeline GetPipelineFromCaps(const SHADERCAPS&);

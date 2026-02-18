@@ -684,12 +684,20 @@ void CGSH_WebGPU::FlushVertexBuffer()
 
 	if(!m_currentRenderPass)
 	{
-		m_surface.GetCurrentTexture(&m_currentSurfaceTexture);
+		if(!m_surface) return;
+
+		wgpu::SurfaceGetCurrentTextureStatus status = m_surface.GetCurrentTexture(&m_currentSurfaceTexture);
+		if(status != wgpu::SurfaceGetCurrentTextureStatus::Success)
+		{
+			printf("WebGPU GetCurrentTexture failed with status: %d\n", static_cast<int>(status));
+			return;
+		}
+
 		wgpu::RenderPassColorAttachment colorAttachment = {};
 		colorAttachment.view = m_currentSurfaceTexture.texture.CreateView();
 		colorAttachment.loadOp = wgpu::LoadOp::Clear;
 		colorAttachment.storeOp = wgpu::StoreOp::Store;
-		colorAttachment.clearValue = {0.0f, 0.0f, 0.0f, 1.0f};
+		colorAttachment.clearValue = {0.0f, 1.0f, 0.0f, 1.0f}; // Green for testing
 
 		wgpu::RenderPassDescriptor renderPassDesc = {};
 		renderPassDesc.colorAttachmentCount = 1;

@@ -13,7 +13,9 @@ public:
 
 	void InitializeImpl() override;
 	void ReleaseImpl() override;
+	void SetPresentationParams(const PRESENTATION_PARAMS&) override;
 	void PresentBackbuffer() override;
+	void ConfigureSurface() override;
 
 private:
 	WGPUDevice m_device;
