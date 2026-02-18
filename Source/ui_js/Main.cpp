@@ -138,7 +138,7 @@ extern "C" void initVm()
 	assert(result == EMSCRIPTEN_RESULT_SUCCESS);
 }
 
-EM_JS(WGPUDevice, getDeviceHandle, (emscripten::EM_VAL device_val), {
+EM_JS(WGPUDevice, getDeviceHandle, (EM_VAL device_val), {
 	var device = EmscriptenVal.toValue(device_val);
 	if (!device) return 0;
 	// For emdawnwebgpu, we can use the internal manager if available
@@ -150,7 +150,7 @@ EM_JS(WGPUDevice, getDeviceHandle, (emscripten::EM_VAL device_val), {
 
 extern "C" void initVmWebGPU(emscripten::val device)
 {
-	WGPUDevice deviceHandle = getDeviceHandle(device.as<emscripten::val>().handle());
+	WGPUDevice deviceHandle = getDeviceHandle(device.as_handle());
 	if (!deviceHandle) {
 		printf("ERROR: Failed to convert JS GPUDevice to WGPUDevice handle\n");
 		return;
