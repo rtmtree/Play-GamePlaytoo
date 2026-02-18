@@ -60,7 +60,7 @@ add_executable(Play
 	Ps2VmJs.h
 )
 # Set output file name to Play900.js and Play900.wasm
-set_target_properties(Play PROPERTIES OUTPUT_NAME "Play")
+set_target_properties(Play PROPERTIES OUTPUT_NAME "PlayDyna")
 target_link_libraries(Play PUBLIC ${UI_JS_PROJECT_LIBS})
 
 target_link_options(Play PRIVATE "--bind")
@@ -89,7 +89,7 @@ target_link_options(Play PRIVATE "-sINITIAL_MEMORY=314572800")
 
 
 #target_link_options(Play PRIVATE "-sASSERTIONS=2")
-target_link_options(Play PRIVATE "-sEXPORT_NAME=Play")
+target_link_options(Play PRIVATE "-sEXPORT_NAME=PlayDyna")
 target_link_options(Play PRIVATE "-sPTHREAD_POOL_SIZE=4")
 target_link_options(Play PRIVATE "-sWASM_BIGINT")
 target_link_options(Play PRIVATE "-sOFFSCREEN_FRAMEBUFFER=1")
