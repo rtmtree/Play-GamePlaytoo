@@ -11,7 +11,7 @@ jobs:
     - name: Setup Emscripten
       uses: mymindstorm/setup-emsdk@v12
       with:
-        version: 4.0.20
+        version: 4.0.1
     - name: Install Dependencies
       run: |
         sudo apt update
