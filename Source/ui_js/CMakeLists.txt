@@ -90,7 +90,7 @@ target_link_options(Play PRIVATE "-sINITIAL_MEMORY=314572800")
 
 #target_link_options(Play PRIVATE "-sASSERTIONS=2")
 target_link_options(Play PRIVATE "-sEXPORT_NAME=PlayDyna")
-target_link_options(Play PRIVATE "-sPTHREAD_POOL_SIZE=4")
+target_link_options(Play PRIVATE "-sPTHREAD_POOL_SIZE=2")
 target_link_options(Play PRIVATE "-sWASM_BIGINT")
 target_link_options(Play PRIVATE "-sOFFSCREEN_FRAMEBUFFER=1")
 target_link_options(Play PRIVATE "-sENVIRONMENT=web,worker")
