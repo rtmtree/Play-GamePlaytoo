@@ -32,13 +32,13 @@ if(NOT TARGET gsh_opengl)
 endif()
 list(APPEND UI_JS_PROJECT_LIBS gsh_opengl)
 
-# if(NOT TARGET gsh_webgpu)
-# 	add_subdirectory(
-# 		${CMAKE_CURRENT_SOURCE_DIR}/../gs/GSH_WebGPU
-# 		${CMAKE_CURRENT_BINARY_DIR}/gs/GSH_WebGPU
-# 	)
-# endif()
-# list(APPEND UI_JS_PROJECT_LIBS gsh_webgpu)
+if(NOT TARGET gsh_webgpu)
+	add_subdirectory(
+		${CMAKE_CURRENT_SOURCE_DIR}/../gs/GSH_WebGPU
+		${CMAKE_CURRENT_BINARY_DIR}/gs/GSH_WebGPU
+	)
+endif()
+list(APPEND UI_JS_PROJECT_LIBS gsh_webgpu)
 
 if(NOT TARGET sh_openal)
 	add_subdirectory(
@@ -51,8 +51,8 @@ list(APPEND UI_JS_PROJECT_LIBS sh_openal)
 add_executable(Play
 	GSH_OpenGLJs.cpp
 	GSH_OpenGLJs.h
-#	GSH_WebGPUJs.cpp
-#	GSH_WebGPUJs.h
+	GSH_WebGPUJs.cpp
+	GSH_WebGPUJs.h
 	InputProviderEmscripten.cpp
 	InputProviderEmscripten.h
 	Main.cpp

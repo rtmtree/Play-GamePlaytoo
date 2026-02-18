@@ -40,3 +40,13 @@ xcuserdata
 
 # npm
 node_modules
+
+
+# js/play_browser/public/Play600.js
+# js/play_browser/public/Play600.wasm
+# js/play_browser/public/Play300.js
+# js/play_browser/public/Play300.wasm
+# js/play_browser/public/Play900.js
+# js/play_browser/public/Play900.wasm
+# js/play_browser/public/PlayDyna.js
+# js/play_browser/public/PlayDyna.wasm
