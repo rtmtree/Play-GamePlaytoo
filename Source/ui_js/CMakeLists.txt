@@ -95,7 +95,7 @@ target_link_options(Play PRIVATE "-sWASM_BIGINT")
 target_link_options(Play PRIVATE "-sOFFSCREEN_FRAMEBUFFER=1")
 target_link_options(Play PRIVATE "-sENVIRONMENT=web,worker")
 target_link_options(Play PRIVATE "-sUSE_WEBGL2=1")
-# target_link_options(Play PRIVATE "--use-port=emdawnwebgpu")
+target_link_options(Play PRIVATE "--use-port=emdawnwebgpu")
 # WebGL performance optimizations
 #target_link_options(Play PRIVATE "-sGL_POOL_TEMP_BUFFERS=0")
 #target_link_options(Play PRIVATE "-sGL_TRACK_ERRORS=0")
