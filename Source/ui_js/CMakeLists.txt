@@ -60,7 +60,7 @@ add_executable(Play
 	Ps2VmJs.h
 )
 # Set output file name to Play900.js and Play900.wasm
-set_target_properties(Play PROPERTIES OUTPUT_NAME "PlayDyna")
+set_target_properties(Play PROPERTIES OUTPUT_NAME "Play900")
 target_link_libraries(Play PUBLIC ${UI_JS_PROJECT_LIBS})
 
 target_link_options(Play PRIVATE "--bind")
@@ -81,15 +81,15 @@ target_link_options(Play PRIVATE "-sALLOW_MEMORY_GROWTH=0")
 target_link_options(Play PRIVATE "-sINITIAL_MEMORY=314572800")
 # # 600
 # target_link_options(Play PRIVATE "-sINITIAL_MEMORY=629145600")
-# 1000
-# target_link_options(Play PRIVATE "-sINITIAL_MEMORY=943718400")
+1000
+target_link_options(Play PRIVATE "-sINITIAL_MEMORY=943718400")
 # 150
 # target_link_options(Play PRIVATE "-sINITIAL_MEMORY=157286400")
 
 
 
 #target_link_options(Play PRIVATE "-sASSERTIONS=2")
-target_link_options(Play PRIVATE "-sEXPORT_NAME=PlayDyna")
+target_link_options(Play PRIVATE "-sEXPORT_NAME=Play900")
 target_link_options(Play PRIVATE "-sPTHREAD_POOL_SIZE=2")
 target_link_options(Play PRIVATE "-sWASM_BIGINT")
 target_link_options(Play PRIVATE "-sOFFSCREEN_FRAMEBUFFER=1")
@@ -97,9 +97,10 @@ target_link_options(Play PRIVATE "-sENVIRONMENT=web,worker")
 target_link_options(Play PRIVATE "-sUSE_WEBGL2=1")
 target_link_options(Play PRIVATE "--use-port=emdawnwebgpu")
 # WebGL performance optimizations
-target_link_options(Play PRIVATE "-sGL_POOL_TEMP_BUFFERS=0")
-target_link_options(Play PRIVATE "-sGL_TRACK_ERRORS=0")
-target_link_options(Play PRIVATE "-sGL_SUPPORT_AUTOMATIC_ENABLE_EXTENSIONS=0")
+#target_link_options(Play PRIVATE "-sGL_POOL_TEMP_BUFFERS=0")
+#target_link_options(Play PRIVATE "-sGL_TRACK_ERRORS=0")
+#target_link_options(Play PRIVATE "-sGL_SUPPORT_AUTOMATIC_ENABLE_EXTENSIONS=0")
+
 # Preload GameConfig.xml into the virtual filesystem
 # get_filename_component(GAMECONFIG_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../GameConfig.xml" ABSOLUTE)
 # target_link_options(Play PRIVATE "--preload-file=${GAMECONFIG_PATH}@/GameConfig.xml")
