@@ -565,7 +565,6 @@ target_link_libraries(PlayCore ${PROJECT_LIBS})
 target_include_directories(PlayCore
 	PUBLIC
 		${CMAKE_CURRENT_SOURCE_DIR}
-	PRIVATE
 		${CMAKE_CURRENT_SOURCE_DIR}/../deps/Framework/include
 		${CMAKE_CURRENT_SOURCE_DIR}/../deps/CodeGen/include
 )
