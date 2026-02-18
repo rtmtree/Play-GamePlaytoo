@@ -170,112 +170,147 @@ export let initPlayModule = async function () {
         }
         console.log('Canvas #outputCanvas verified, accessible by CSS selector');
 
-        // Try embind export first (initVm), then EXPORTED_FUNCTIONS (_initVm), then ccall
-        let initResult;
-        if (typeof PlayModule.initVm === 'function') {
-            // Call via embind (preferred when using --bind)
-            // initVm is void, but might throw on failure (e.g., assert failure in WebGL context creation)
-            // Retry logic for "unwind" errors which can occur when worker threads aren't ready
-            let retryCount = 0;
-            const maxRetries = isLowRAMDevice ? 3 : 1;
-            const retryDelay = 1000; // 1 second between retries
+        // --- WebGPU Initialization ---
+        let gpuDevice = null;
+        let useWebGPU = false;
 
-            while (retryCount <= maxRetries) {
-                try {
-                    initResult = PlayModule.initVm();
-                    // initVm is void, so initResult should be undefined
-                    // If it returns a number, something went wrong
-                    if (typeof initResult === 'number') {
-                        console.error('initVm returned unexpected numeric value:', initResult);
-                        throw new Error(`initVm returned unexpected value: ${initResult}. This might indicate a WebGL context creation failure.`);
-                    }
-                    // Success - break out of retry loop
-                    break;
-                } catch (error: any) {
-                    // Check if this is an "unwind" error (C++ exception indicating worker thread issue)
-                    const isUnwindError = error === 'unwind' || String(error) === 'unwind';
-
-                    if (isUnwindError && retryCount < maxRetries) {
-                        retryCount++;
-                        console.warn(`initVm failed with unwind error (attempt ${retryCount}/${maxRetries + 1}), waiting ${retryDelay}ms before retry...`);
-                        await new Promise(resolve => setTimeout(resolve, retryDelay));
-                        continue; // Retry
-                    }
-                    // Log detailed error information
-                    console.error('initVm threw an error:', error);
-                    console.error('Error details:', {
-                        type: typeof error,
-                        value: error,
-                        message: error?.message,
-                        name: error?.name,
-                        stack: error?.stack
-                    });
-
-                    // Handle numeric errors (Emscripten assertion failures often throw numbers)
-                    if (typeof error === 'number') {
-                        // Convert to hex for debugging
-                        const errorHex = '0x' + error.toString(16).toUpperCase();
-                        console.error(`Numeric error code: ${error} (${errorHex})`);
-
-                        // Check if canvas is actually accessible
-                        const canvasCheck = document.getElementById('outputCanvas');
-                        if (!canvasCheck) {
-                            throw new Error(`initVm failed: Canvas #outputCanvas not found in DOM. Error code: ${error} (${errorHex}). This indicates WebGL context creation failed because the canvas element is missing.`);
-                        }
-
-                        // Check canvas dimensions
-                        const canvasEl = canvasCheck as HTMLCanvasElement;
-                        if (canvasEl.width === 0 || canvasEl.height === 0) {
-                            throw new Error(`initVm failed: Canvas #outputCanvas has invalid dimensions (${canvasEl.width}x${canvasEl.height}). Error code: ${error} (${errorHex}). Canvas must have non-zero dimensions for WebGL context creation.`);
-                        }
-
-                        // Check if canvas is in the document
-                        if (!document.body.contains(canvasCheck)) {
-                            throw new Error(`initVm failed: Canvas #outputCanvas is not in the document body. Error code: ${error} (${errorHex}). Canvas must be attached to the DOM for WebGL context creation.`);
-                        }
-
-                        throw new Error(`initVm failed: WebGL context creation failed with error code ${error} (${errorHex}). Canvas exists with dimensions ${canvasEl.width}x${canvasEl.height}. This might indicate WebGL 2.0 is not available or the context attributes are incompatible.`);
-                    }
-
-                    // Check for Emscripten-specific error patterns
-                    const errorStr = String(error);
-                    if (errorStr.includes('assert') || errorStr.includes('Assertion')) {
-                        throw new Error(`initVm assertion failed. This usually means WebGL context creation failed. Error: ${errorStr}`);
-                    }
-
-                    // Re-throw with more context
-                    if (error instanceof Error) {
-                        throw new Error(`initVm failed: ${error.message}. The canvas #outputCanvas exists and has dimensions ${canvas.width}x${canvas.height}.`);
-                    } else {
-                        throw new Error(`initVm failed with unexpected error type: ${typeof error}, value: ${error}`);
-                    }
-                }
-            }
-            // If we exhausted retries, the error was already thrown above
-        } else if (typeof PlayModule._initVm === 'function') {
-            // Call via EXPORTED_FUNCTIONS
+        if ((navigator as any).gpu) {
+            console.log('WebGPU detected, attempting to request adapter and device...');
             try {
-                initResult = PlayModule._initVm();
-                if (typeof initResult === 'number' && (initResult < 0 || initResult > 1000000)) {
-                    throw new Error(`_initVm returned error code: ${initResult}`);
+                const adapter = await (navigator as any).gpu.requestAdapter();
+                if (adapter) {
+                    gpuDevice = await adapter.requestDevice();
+                    useWebGPU = true;
+                    console.log('WebGPU device acquired successfully');
+                } else {
+                    console.warn('WebGPU adapter not found');
                 }
-            } catch (error: any) {
-                throw new Error(`_initVm failed: ${error}`);
+            } catch (e) {
+                console.warn('Failed to initialize WebGPU:', e);
             }
-        } else if (typeof PlayModule.ccall === 'function') {
-            // Fallback to ccall
-            try {
-                initResult = PlayModule.ccall('initVm', null, [], []);
-                if (typeof initResult === 'number' && (initResult < 0 || initResult > 1000000)) {
-                    throw new Error(`initVm (via ccall) returned error code: ${initResult}`);
-                }
-            } catch (error: any) {
-                throw new Error(`initVm (via ccall) failed: ${error}`);
-            }
-        } else {
-            throw new Error('initVm function not found. Available methods: ' + Object.keys(PlayModule).filter(k => k.includes('init') || k === '_initVm').join(', '));
         }
-        console.log('initVm completed successfully');
+
+        // Try embind export first (initVmWebGPU or initVm)
+        let initResult;
+        if (useWebGPU && typeof PlayModule.initVmWebGPU === 'function') {
+            try {
+                console.log('Calling initVmWebGPU...');
+                // Emscripten handles the conversion of gpuDevice to WGPUDevice handle
+                initResult = PlayModule.initVmWebGPU(gpuDevice);
+                console.log('initVmWebGPU completed successfully');
+            } catch (error) {
+                console.error('initVmWebGPU failed, falling back to WebGL:', error);
+                useWebGPU = false;
+            }
+        }
+
+        if (!useWebGPU) {
+            if (typeof PlayModule.initVm === 'function') {
+                // ... (rest of the existing logic)
+                // Call via embind (preferred when using --bind)
+                // initVm is void, but might throw on failure (e.g., assert failure in WebGL context creation)
+                // Retry logic for "unwind" errors which can occur when worker threads aren't ready
+                let retryCount = 0;
+                const maxRetries = isLowRAMDevice ? 3 : 1;
+                const retryDelay = 1000; // 1 second between retries
+
+                while (retryCount <= maxRetries) {
+                    try {
+                        initResult = PlayModule.initVm();
+                        // initVm is void, so initResult should be undefined
+                        // If it returns a number, something went wrong
+                        if (typeof initResult === 'number') {
+                            console.error('initVm returned unexpected numeric value:', initResult);
+                            throw new Error(`initVm returned unexpected value: ${initResult}. This might indicate a WebGL context creation failure.`);
+                        }
+                        // Success - break out of retry loop
+                        break;
+                    } catch (error: any) {
+                        // Check if this is an "unwind" error (C++ exception indicating worker thread issue)
+                        const isUnwindError = error === 'unwind' || String(error) === 'unwind';
+
+                        if (isUnwindError && retryCount < maxRetries) {
+                            retryCount++;
+                            console.warn(`initVm failed with unwind error (attempt ${retryCount}/${maxRetries + 1}), waiting ${retryDelay}ms before retry...`);
+                            await new Promise(resolve => setTimeout(resolve, retryDelay));
+                            continue; // Retry
+                        }
+                        // Log detailed error information
+                        console.error('initVm threw an error:', error);
+                        console.error('Error details:', {
+                            type: typeof error,
+                            value: error,
+                            message: error?.message,
+                            name: error?.name,
+                            stack: error?.stack
+                        });
+
+                        // Handle numeric errors (Emscripten assertion failures often throw numbers)
+                        if (typeof error === 'number') {
+                            // Convert to hex for debugging
+                            const errorHex = '0x' + error.toString(16).toUpperCase();
+                            console.error(`Numeric error code: ${error} (${errorHex})`);
+
+                            // Check if canvas is actually accessible
+                            const canvasCheck = document.getElementById('outputCanvas');
+                            if (!canvasCheck) {
+                                throw new Error(`initVm failed: Canvas #outputCanvas not found in DOM. Error code: ${error} (${errorHex}). This indicates WebGL context creation failed because the canvas element is missing.`);
+                            }
+
+                            // Check canvas dimensions
+                            const canvasEl = canvasCheck as HTMLCanvasElement;
+                            if (canvasEl.width === 0 || canvasEl.height === 0) {
+                                throw new Error(`initVm failed: Canvas #outputCanvas has invalid dimensions (${canvasEl.width}x${canvasEl.height}). Error code: ${error} (${errorHex}). Canvas must have non-zero dimensions for WebGL context creation.`);
+                            }
+
+                            // Check if canvas is in the document
+                            if (!document.body.contains(canvasCheck)) {
+                                throw new Error(`initVm failed: Canvas #outputCanvas is not in the document body. Error code: ${error} (${errorHex}). Canvas must be attached to the DOM for WebGL context creation.`);
+                            }
+
+                            throw new Error(`initVm failed: WebGL context creation failed with error code ${error} (${errorHex}). Canvas exists with dimensions ${canvasEl.width}x${canvasEl.height}. This might indicate WebGL 2.0 is not available or the context attributes are incompatible.`);
+                        }
+
+                        // Check for Emscripten-specific error patterns
+                        const errorStr = String(error);
+                        if (errorStr.includes('assert') || errorStr.includes('Assertion')) {
+                            throw new Error(`initVm assertion failed. This usually means WebGL context creation failed. Error: ${errorStr}`);
+                        }
+
+                        // Re-throw with more context
+                        if (error instanceof Error) {
+                            throw new Error(`initVm failed: ${error.message}. The canvas #outputCanvas exists and has dimensions ${canvas.width}x${canvas.height}.`);
+                        } else {
+                            throw new Error(`initVm failed with unexpected error type: ${typeof error}, value: ${error}`);
+                        }
+                    }
+                }
+                // If we exhausted retries, the error was already thrown above
+            } else if (typeof PlayModule._initVm === 'function') {
+                // Call via EXPORTED_FUNCTIONS
+                try {
+                    initResult = PlayModule._initVm();
+                    if (typeof initResult === 'number' && (initResult < 0 || initResult > 1000000)) {
+                        throw new Error(`_initVm returned error code: ${initResult}`);
+                    }
+                } catch (error: any) {
+                    throw new Error(`_initVm failed: ${error}`);
+                }
+            } else if (typeof PlayModule.ccall === 'function') {
+                // Fallback to ccall
+                try {
+                    initResult = PlayModule.ccall('initVm', null, [], []);
+                    if (typeof initResult === 'number' && (initResult < 0 || initResult > 1000000)) {
+                        throw new Error(`initVm (via ccall) returned error code: ${initResult}`);
+                    }
+                } catch (error: any) {
+                    throw new Error(`initVm (via ccall) failed: ${error}`);
+                }
+            } else {
+                throw new Error('initVm function not found. Available methods: ' + Object.keys(PlayModule).filter(k => k.includes('init') || k === '_initVm').join(', '));
+            }
+            console.log('initVm completed successfully');
+        }
 
     } catch (error) {
         console.error('Error initializing PlayModule:', error);

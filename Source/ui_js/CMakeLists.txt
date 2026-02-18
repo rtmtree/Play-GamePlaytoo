@@ -32,6 +32,14 @@ if(NOT TARGET gsh_opengl)
 endif()
 list(APPEND UI_JS_PROJECT_LIBS gsh_opengl)
 
+if(NOT TARGET gsh_webgpu)
+	add_subdirectory(
+		${CMAKE_CURRENT_SOURCE_DIR}/../gs/GSH_WebGPU
+		${CMAKE_CURRENT_BINARY_DIR}/gs/GSH_WebGPU
+	)
+endif()
+list(APPEND UI_JS_PROJECT_LIBS gsh_webgpu)
+
 if(NOT TARGET sh_openal)
 	add_subdirectory(
 		${CMAKE_CURRENT_SOURCE_DIR}/../sound/SH_OpenAL
@@ -43,6 +51,8 @@ list(APPEND UI_JS_PROJECT_LIBS sh_openal)
 add_executable(Play
 	GSH_OpenGLJs.cpp
 	GSH_OpenGLJs.h
+	GSH_WebGPUJs.cpp
+	GSH_WebGPUJs.h
 	InputProviderEmscripten.cpp
 	InputProviderEmscripten.h
 	Main.cpp
@@ -86,6 +96,7 @@ target_link_options(Play PRIVATE "-sWASM_BIGINT")
 target_link_options(Play PRIVATE "-sOFFSCREEN_FRAMEBUFFER=1")
 target_link_options(Play PRIVATE "-sENVIRONMENT=web,worker")
 target_link_options(Play PRIVATE "-sUSE_WEBGL2=1")
+target_link_options(Play PRIVATE "-sUSE_WEBGPU=1")
 # WebGL performance optimizations
 target_link_options(Play PRIVATE "-sGL_POOL_TEMP_BUFFERS=0")
 target_link_options(Play PRIVATE "-sGL_TRACK_ERRORS=0")
