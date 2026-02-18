@@ -548,6 +548,7 @@ void CGSH_WebGPU::ProcessPrim(uint64 value)
 
 void CGSH_WebGPU::VertexKick(uint8 reg, uint64 value)
 {
+	if(!m_drawEnabled) return;
 	bool isXYZF = (reg == GS_REG_XYZF2) || (reg == GS_REG_XYZF3);
 	auto xyz = make_convertible<XYZ>(value);
 	auto xyzf = make_convertible<XYZF>(value);
@@ -686,12 +687,7 @@ void CGSH_WebGPU::FlushVertexBuffer()
 	{
 		if(!m_surface) return;
 
-		wgpu::SurfaceGetCurrentTextureStatus status = m_surface.GetCurrentTexture(&m_currentSurfaceTexture);
-		if(status != wgpu::SurfaceGetCurrentTextureStatus::Success)
-		{
-			printf("WebGPU GetCurrentTexture failed with status: %d\n", static_cast<int>(status));
-			return;
-		}
+		m_surface.GetCurrentTexture(&m_currentSurfaceTexture);
 
 		wgpu::RenderPassColorAttachment colorAttachment = {};
 		colorAttachment.view = m_currentSurfaceTexture.texture.CreateView();

@@ -129,6 +129,7 @@ void CGSHandler::RegisterPreferences()
 	CAppConfig::GetInstance().RegisterPreferenceInteger(PREF_CGSHANDLER_PRESENTATION_MODE, CGSHandler::PRESENTATION_MODE_FIT);
 	CAppConfig::GetInstance().RegisterPreferenceBoolean(PREF_CGSHANDLER_GS_RAM_READS_ENABLED, true);
 	CAppConfig::GetInstance().RegisterPreferenceBoolean(PREF_CGSHANDLER_WIDESCREEN, false);
+	CAppConfig::GetInstance().RegisterPreferenceInteger(PREF_CGSHANDLER_FRAMESKIP, 0);
 }
 
 void CGSHandler::NotifyPreferencesChanged()
@@ -187,6 +188,7 @@ void CGSHandler::ResetImpl()
 
 void CGSHandler::NotifyPreferencesChangedImpl()
 {
+	m_frameskipLimit = CAppConfig::GetInstance().GetPreferenceInteger(PREF_CGSHANDLER_FRAMESKIP);
 }
 
 void CGSHandler::SetPresentationParams(const PRESENTATION_PARAMS& presentationParams)
@@ -403,6 +405,16 @@ void CGSHandler::SetVBlank()
 	{
 		Finish();
 		Flip();
+	}
+
+	if(m_frameskipLimit != 0)
+	{
+		m_drawEnabled = (m_frameskipCounter == 0);
+		m_frameskipCounter = (m_frameskipCounter + 1) % (m_frameskipLimit + 1);
+	}
+	else
+	{
+		m_drawEnabled = true;
 	}
 
 	std::lock_guard registerMutexLock(m_registerMutex);

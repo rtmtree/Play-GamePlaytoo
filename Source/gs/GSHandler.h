@@ -22,6 +22,7 @@ class CINTC;
 #define PREF_CGSHANDLER_PRESENTATION_MODE "renderer.presentationmode"
 #define PREF_CGSHANDLER_GS_RAM_READS_ENABLED "renderer.ramreads.enabled"
 #define PREF_CGSHANDLER_WIDESCREEN "renderer.widescreen"
+#define PREF_CGSHANDLER_FRAMESKIP "renderer.frameskip"
 
 enum GS_REGS
 {
@@ -1135,6 +1136,8 @@ protected:
 	CINTC* m_intc = nullptr;
 	bool m_gsThreaded = true;
 	bool m_flipped = false;
+	uint32 m_frameskipLimit = 0;
+	uint32 m_frameskipCounter = 0;
 
 private:
 	CMailBox m_mailBox;

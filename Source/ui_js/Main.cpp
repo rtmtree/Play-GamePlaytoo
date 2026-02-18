@@ -277,6 +277,15 @@ int getStatus()
 	return static_cast<int>(g_virtualMachine->GetStatus());
 }
 
+void setFrameskip(int count)
+{
+	CAppConfig::GetInstance().SetPreferenceInteger(PREF_CGSHANDLER_FRAMESKIP, count);
+	if(g_virtualMachine && g_virtualMachine->GetGSHandler())
+	{
+		g_virtualMachine->GetGSHandler()->NotifyPreferencesChanged();
+	}
+}
+
 EMSCRIPTEN_BINDINGS(Play)
 {
 	using namespace emscripten;
@@ -292,4 +301,5 @@ EMSCRIPTEN_BINDINGS(Play)
 	function("pauseVm", &pauseVm);
 	function("resumeVm", &resumeVm);
 	function("getStatus", &getStatus);
+	function("setFrameskip", &setFrameskip);
 }
