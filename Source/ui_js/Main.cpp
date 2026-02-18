@@ -2,7 +2,7 @@
 #include <emscripten/bind.h>
 #include "Ps2VmJs.h"
 #include "GSH_OpenGLJs.h"
-#include "GSH_WebGPUJs.h"
+// #include "GSH_WebGPUJs.h"
 #include "sound/SH_OpenAL/SH_OpenALProxy.h"
 #include "input/PH_GenericInput.h"
 #include "InputProviderEmscripten.h"
@@ -137,76 +137,76 @@ extern "C" void initVm()
 	assert(result == EMSCRIPTEN_RESULT_SUCCESS);
 }
 
-extern "C" void initVmWebGPU(WGPUDevice device)
-{
-	g_virtualMachine = new CPs2VmJs();
-	g_virtualMachine->Initialize();
-	g_virtualMachine->CreateGSHandler(CGSH_WebGPUJs::GetFactoryFunction(device));
+// extern "C" void initVmWebGPU(WGPUDevice device)
+// {
+// 	g_virtualMachine = new CPs2VmJs();
+// 	g_virtualMachine->Initialize();
+// 	g_virtualMachine->CreateGSHandler(CGSH_WebGPUJs::GetFactoryFunction(device));
 
-	{
-		CGSHandler::PRESENTATION_PARAMS presentationParams;
-		presentationParams.mode = CGSHandler::PRESENTATION_MODE_FIT;
-		presentationParams.windowWidth = 480;
-		presentationParams.windowHeight = 360;
+// 	{
+// 		CGSHandler::PRESENTATION_PARAMS presentationParams;
+// 		presentationParams.mode = CGSHandler::PRESENTATION_MODE_FIT;
+// 		presentationParams.windowWidth = 480;
+// 		presentationParams.windowHeight = 360;
 
-		g_virtualMachine->m_ee->m_gs->SetPresentationParams(presentationParams);
-	}
+// 		g_virtualMachine->m_ee->m_gs->SetPresentationParams(presentationParams);
+// 	}
 
-	{
-		g_virtualMachine->CreatePadHandler(CPH_GenericInput::GetFactoryFunction());
-		auto padHandler = static_cast<CPH_GenericInput*>(g_virtualMachine->GetPadHandler());
-		auto& bindingManager = padHandler->GetBindingManager();
+// 	{
+// 		g_virtualMachine->CreatePadHandler(CPH_GenericInput::GetFactoryFunction());
+// 		auto padHandler = static_cast<CPH_GenericInput*>(g_virtualMachine->GetPadHandler());
+// 		auto& bindingManager = padHandler->GetBindingManager();
 
-		g_inputProvider = std::make_shared<CInputProviderEmscripten>();
-		bindingManager.RegisterInputProvider(g_inputProvider);
+// 		g_inputProvider = std::make_shared<CInputProviderEmscripten>();
+// 		bindingManager.RegisterInputProvider(g_inputProvider);
 
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::START, CInputProviderEmscripten::MakeBindingTarget("Enter"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::SELECT, CInputProviderEmscripten::MakeBindingTarget("Backspace"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::DPAD_LEFT, CInputProviderEmscripten::MakeBindingTarget("ArrowLeft"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::DPAD_RIGHT, CInputProviderEmscripten::MakeBindingTarget("ArrowRight"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::DPAD_UP, CInputProviderEmscripten::MakeBindingTarget("ArrowUp"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::DPAD_DOWN, CInputProviderEmscripten::MakeBindingTarget("ArrowDown"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::SQUARE, CInputProviderEmscripten::MakeBindingTarget("KeyA"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::CROSS, CInputProviderEmscripten::MakeBindingTarget("KeyZ"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::TRIANGLE, CInputProviderEmscripten::MakeBindingTarget("KeyS"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::CIRCLE, CInputProviderEmscripten::MakeBindingTarget("KeyX"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::L1, CInputProviderEmscripten::MakeBindingTarget("Key1"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::L2, CInputProviderEmscripten::MakeBindingTarget("Key2"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::L3, CInputProviderEmscripten::MakeBindingTarget("Key3"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::R1, CInputProviderEmscripten::MakeBindingTarget("Key8"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::R2, CInputProviderEmscripten::MakeBindingTarget("Key9"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::R3, CInputProviderEmscripten::MakeBindingTarget("Key0"));
+// 		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::START, CInputProviderEmscripten::MakeBindingTarget("Enter"));
+// 		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::SELECT, CInputProviderEmscripten::MakeBindingTarget("Backspace"));
+// 		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::DPAD_LEFT, CInputProviderEmscripten::MakeBindingTarget("ArrowLeft"));
+// 		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::DPAD_RIGHT, CInputProviderEmscripten::MakeBindingTarget("ArrowRight"));
+// 		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::DPAD_UP, CInputProviderEmscripten::MakeBindingTarget("ArrowUp"));
+// 		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::DPAD_DOWN, CInputProviderEmscripten::MakeBindingTarget("ArrowDown"));
+// 		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::SQUARE, CInputProviderEmscripten::MakeBindingTarget("KeyA"));
+// 		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::CROSS, CInputProviderEmscripten::MakeBindingTarget("KeyZ"));
+// 		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::TRIANGLE, CInputProviderEmscripten::MakeBindingTarget("KeyS"));
+// 		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::CIRCLE, CInputProviderEmscripten::MakeBindingTarget("KeyX"));
+// 		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::L1, CInputProviderEmscripten::MakeBindingTarget("Key1"));
+// 		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::L2, CInputProviderEmscripten::MakeBindingTarget("Key2"));
+// 		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::L3, CInputProviderEmscripten::MakeBindingTarget("Key3"));
+// 		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::R1, CInputProviderEmscripten::MakeBindingTarget("Key8"));
+// 		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::R2, CInputProviderEmscripten::MakeBindingTarget("Key9"));
+// 		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::R3, CInputProviderEmscripten::MakeBindingTarget("Key0"));
 
-		bindingManager.SetSimulatedAxisBinding(0, PS2::CControllerInfo::ANALOG_LEFT_X,
-		                                       CInputProviderEmscripten::MakeBindingTarget("KeyF"),
-		                                       CInputProviderEmscripten::MakeBindingTarget("KeyH"));
-		bindingManager.SetSimulatedAxisBinding(0, PS2::CControllerInfo::ANALOG_LEFT_Y,
-		                                       CInputProviderEmscripten::MakeBindingTarget("KeyT"),
-		                                       CInputProviderEmscripten::MakeBindingTarget("KeyG"));
+// 		bindingManager.SetSimulatedAxisBinding(0, PS2::CControllerInfo::ANALOG_LEFT_X,
+// 		                                       CInputProviderEmscripten::MakeBindingTarget("KeyF"),
+// 		                                       CInputProviderEmscripten::MakeBindingTarget("KeyH"));
+// 		bindingManager.SetSimulatedAxisBinding(0, PS2::CControllerInfo::ANALOG_LEFT_Y,
+// 		                                       CInputProviderEmscripten::MakeBindingTarget("KeyT"),
+// 		                                       CInputProviderEmscripten::MakeBindingTarget("KeyG"));
 
-		bindingManager.SetSimulatedAxisBinding(0, PS2::CControllerInfo::ANALOG_RIGHT_X,
-		                                       CInputProviderEmscripten::MakeBindingTarget("KeyJ"),
-		                                       CInputProviderEmscripten::MakeBindingTarget("KeyL"));
-		bindingManager.SetSimulatedAxisBinding(0, PS2::CControllerInfo::ANALOG_RIGHT_Y,
-		                                       CInputProviderEmscripten::MakeBindingTarget("KeyI"),
-		                                       CInputProviderEmscripten::MakeBindingTarget("KeyK"));
-	}
+// 		bindingManager.SetSimulatedAxisBinding(0, PS2::CControllerInfo::ANALOG_RIGHT_X,
+// 		                                       CInputProviderEmscripten::MakeBindingTarget("KeyJ"),
+// 		                                       CInputProviderEmscripten::MakeBindingTarget("KeyL"));
+// 		bindingManager.SetSimulatedAxisBinding(0, PS2::CControllerInfo::ANALOG_RIGHT_Y,
+// 		                                       CInputProviderEmscripten::MakeBindingTarget("KeyI"),
+// 		                                       CInputProviderEmscripten::MakeBindingTarget("KeyK"));
+// 	}
 
-	{
-		g_soundHandler = new CSH_OpenAL();
-		g_virtualMachine->CreateSoundHandler(CSH_OpenALProxy::GetFactoryFunction(g_soundHandler));
-	}
+// 	{
+// 		g_soundHandler = new CSH_OpenAL();
+// 		g_virtualMachine->CreateSoundHandler(CSH_OpenALProxy::GetFactoryFunction(g_soundHandler));
+// 	}
 
-	g_gsNewFrameConnection = g_virtualMachine->GetGSHandler()->OnNewFrame.Connect(std::bind(&CStatsManager::OnGsNewFrame, &CStatsManager::GetInstance(), std::placeholders::_1));
+// 	g_gsNewFrameConnection = g_virtualMachine->GetGSHandler()->OnNewFrame.Connect(std::bind(&CStatsManager::OnGsNewFrame, &CStatsManager::GetInstance(), std::placeholders::_1));
 
-	EMSCRIPTEN_RESULT result = EMSCRIPTEN_RESULT_SUCCESS;
+// 	EMSCRIPTEN_RESULT result = EMSCRIPTEN_RESULT_SUCCESS;
 
-	result = emscripten_set_keydown_callback("#outputCanvas", nullptr, false, &keyboardCallback);
-	assert(result == EMSCRIPTEN_RESULT_SUCCESS);
+// 	result = emscripten_set_keydown_callback("#outputCanvas", nullptr, false, &keyboardCallback);
+// 	assert(result == EMSCRIPTEN_RESULT_SUCCESS);
 
-	result = emscripten_set_keyup_callback("#outputCanvas", nullptr, false, &keyboardCallback);
-	assert(result == EMSCRIPTEN_RESULT_SUCCESS);
-}
+// 	result = emscripten_set_keyup_callback("#outputCanvas", nullptr, false, &keyboardCallback);
+// 	assert(result == EMSCRIPTEN_RESULT_SUCCESS);
+// }
 
 void bootElf(std::string path)
 {
@@ -282,7 +282,7 @@ EMSCRIPTEN_BINDINGS(Play)
 	using namespace emscripten;
 
 	function("initVm", &initVm);
-	function("initVmWebGPU", &initVmWebGPU, allow_raw_pointers());
+	// function("initVmWebGPU", &initVmWebGPU, allow_raw_pointers());
 	function("bootElf", &bootElf);
 	function("bootDiscImage", &bootDiscImage);
 	function("getFrames", &getFrames);
