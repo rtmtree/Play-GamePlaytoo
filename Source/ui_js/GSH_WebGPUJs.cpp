@@ -22,8 +22,8 @@ void CGSH_WebGPUJs::InitializeImpl()
 	surfaceDesc.nextInChain = &canvasDesc;
 	m_surface = m_instance.CreateSurface(&surfaceDesc);
 
-	m_swapChainFormat = m_surface.GetPreferredFormat(this->CGSH_WebGPU::m_device.GetAdapter());
-	printf("WebGPU Preferred Format: %d\n", static_cast<int>(m_swapChainFormat));
+	m_swapChainFormat = wgpu::TextureFormat::BGRA8Unorm;
+	printf("WebGPU Format: %d\n", static_cast<int>(m_swapChainFormat));
 
 	ConfigureSurface();
 
