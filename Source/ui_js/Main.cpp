@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <emscripten/bind.h>
+#include <emscripten/val.h>
 #include "Ps2VmJs.h"
 #include "GSH_OpenGLJs.h"
 #include "GSH_WebGPUJs.h"
@@ -137,11 +138,26 @@ extern "C" void initVm()
 	assert(result == EMSCRIPTEN_RESULT_SUCCESS);
 }
 
-extern "C" void initVmWebGPU(WGPUDevice device)
+EM_JS(WGPUDevice, getDeviceHandle, (emscripten::EM_VAL device_val), {
+	var device = EmscriptenVal.toValue(device_val);
+	if (!device) return 0;
+	// For emdawnwebgpu, we can use the internal manager if available
+	if (Module['WebGPU'] && Module['WebGPU'].mgr) {
+		return Module['WebGPU'].mgr.createWGPUHandle(device);
+	}
+	return 0;
+});
+
+extern "C" void initVmWebGPU(emscripten::val device)
 {
+	WGPUDevice deviceHandle = getDeviceHandle(device.as<emscripten::val>().handle());
+	if (!deviceHandle) {
+		printf("ERROR: Failed to convert JS GPUDevice to WGPUDevice handle\n");
+		return;
+	}
 	g_virtualMachine = new CPs2VmJs();
 	g_virtualMachine->Initialize();
-	g_virtualMachine->CreateGSHandler(CGSH_WebGPUJs::GetFactoryFunction(device));
+	g_virtualMachine->CreateGSHandler(CGSH_WebGPUJs::GetFactoryFunction(deviceHandle));
 
 	{
 		CGSHandler::PRESENTATION_PARAMS presentationParams;
@@ -291,7 +307,7 @@ EMSCRIPTEN_BINDINGS(Play)
 	using namespace emscripten;
 
 	function("initVm", &initVm);
-	function("initVmWebGPU", &initVmWebGPU, allow_raw_pointers());
+	function("initVmWebGPU", &initVmWebGPU);
 	function("bootElf", &bootElf);
 	function("bootDiscImage", &bootDiscImage);
 	function("getFrames", &getFrames);
