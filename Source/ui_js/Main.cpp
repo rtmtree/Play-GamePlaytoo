@@ -139,7 +139,9 @@ extern "C" void initVm()
 }
 
 EM_JS(WGPUDevice, getDeviceHandle, (emscripten::EM_VAL device_val), {
-	var device = EmscriptenVal.toValue(device_val);
+	var valObj = typeof Emval !== 'undefined' ? Emval : (typeof EmscriptenVal !== 'undefined' ? EmscriptenVal : null);
+	if (!valObj) return 0;
+	var device = valObj.toValue(device_val);
 	if (!device) return 0;
 	// For emdawnwebgpu, we can use the internal manager if available
 	if (Module['WebGPU'] && Module['WebGPU'].mgr) {
