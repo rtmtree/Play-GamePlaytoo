@@ -140,12 +140,17 @@ extern "C" void initVm()
 
 EM_JS(WGPUDevice, getDeviceHandle, (emscripten::EM_VAL device_val), {
 	var valObj = typeof Emval !== 'undefined' ? Emval : (typeof EmscriptenVal !== 'undefined' ? EmscriptenVal : null);
+	console.log('getDeviceHandle: valObj found:', !!valObj, 'name:', typeof Emval !== 'undefined' ? 'Emval' : (typeof EmscriptenVal !== 'undefined' ? 'EmscriptenVal' : 'none'));
 	if (!valObj) return 0;
 	var device = valObj.toValue(device_val);
+	console.log('getDeviceHandle: device object exists:', !!device);
 	if (!device) return 0;
 	// For emdawnwebgpu, we can use the internal manager if available
+	console.log('getDeviceHandle: Module.WebGPU:', !!Module['WebGPU'], 'mgr:', Module['WebGPU'] ? !!Module['WebGPU'].mgr : 'n/a');
 	if (Module['WebGPU'] && Module['WebGPU'].mgr) {
-		return Module['WebGPU'].mgr.createWGPUHandle(device);
+		var handle = Module['WebGPU'].mgr.createWGPUHandle(device);
+		console.log('getDeviceHandle: created handle:', handle);
+		return handle;
 	}
 	return 0;
 });
@@ -155,6 +160,7 @@ extern "C" void initVmWebGPU(emscripten::val device)
 	WGPUDevice deviceHandle = getDeviceHandle(device.as_handle());
 	if (!deviceHandle) {
 		printf("ERROR: Failed to convert JS GPUDevice to WGPUDevice handle\n");
+		emscripten_throw_string("Failed to convert JS GPUDevice to WGPUDevice handle");
 		return;
 	}
 	g_virtualMachine = new CPs2VmJs();
