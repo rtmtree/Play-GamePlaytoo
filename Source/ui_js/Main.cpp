@@ -140,25 +140,35 @@ extern "C" void initVm()
 
 EM_JS(WGPUDevice, getDeviceHandle, (emscripten::EM_VAL device_val), {
 	var valObj = typeof Emval !== 'undefined' ? Emval : (typeof EmscriptenVal !== 'undefined' ? EmscriptenVal : null);
-	console.log('getDeviceHandle: valObj found:', !!valObj);
-	if (!valObj) return 0;
+	if (!valObj) {
+		console.error('getDeviceHandle: Emval/EmscriptenVal is undefined!');
+		return 0;
+	}
 	var device = valObj.toValue(device_val);
-	console.log('getDeviceHandle: device object exists:', !!device);
-	if (!device) return 0;
-	
-	// List Module keys to debug
-	console.log('getDeviceHandle: Module keys:', Object.keys(Module).filter(k => k.toLowerCase().includes('gpu') || k.toLowerCase().includes('canvas')));
-	
-	// For emdawnwebgpu, we can use the internal manager if available
-	if (Module['WebGPU'] && Module['WebGPU'].mgr) {
-		var handle = Module['WebGPU'].mgr.createWGPUHandle(device);
-		console.log('getDeviceHandle: created handle:', handle);
-		return handle;
+	if (!device) {
+		console.error('getDeviceHandle: Failed to convert val to JS device object');
+		return 0;
 	}
-	// Try fallback names
-	if (Module['GPU'] && Module['GPU'].mgr) {
-		return Module['GPU'].mgr.createWGPUHandle(device);
+	
+	console.log('getDeviceHandle: device object retrieved:', device);
+
+	if (Module['WebGPU']) {
+		console.log('getDeviceHandle: Module.WebGPU exists');
+		if (Module['WebGPU'].mgr) {
+			console.log('getDeviceHandle: Module.WebGPU.mgr exists');
+			var handle = Module['WebGPU'].mgr.createWGPUHandle(device);
+			console.log('getDeviceHandle: createWGPUHandle result:', handle);
+			return handle;
+		} else {
+			console.error('getDeviceHandle: Module.WebGPU.mgr is missing');
+		}
+	} else {
+		console.error('getDeviceHandle: Module.WebGPU is missing');
 	}
+	
+	// Fallback/Debug dump
+	console.log('Module keys:', Object.keys(Module));
+	
 	return 0;
 });
 
