@@ -1,16 +1,20 @@
 #include "GSH_WebGPUJs.h"
 
-CGSH_WebGPUJs::CGSH_WebGPUJs(WGPUDevice device)
+CGSH_WebGPUJs::CGSH_WebGPUJs(WGPUDevice device, const std::string& backend)
     : m_device(device)
 {
-	// Base class constructor already created m_context
+	// Base class constructor already created m_context (Vulkan style)
+	// If backend is "opengl", we might want to do something else or set a flag.
+	// For now, let's just initialize the context as before, assuming "vulkan" style is default.
+	printf("GSH_WebGPUJs initialized with backend: %s\n", backend.c_str());
 	m_context->device = wgpu::Device::Acquire(device);
 	m_context->queue = m_context->device.GetQueue();
+	m_backendName = backend; // Store backend preference
 }
 
-CGSH_WebGPU::FactoryFunction CGSH_WebGPUJs::GetFactoryFunction(WGPUDevice device)
+CGSH_WebGPU::FactoryFunction CGSH_WebGPUJs::GetFactoryFunction(WGPUDevice device, const std::string& backend)
 {
-	return [device]() { return new CGSH_WebGPUJs(device); };
+	return [device, backend]() { return new CGSH_WebGPUJs(device, backend); };
 }
 
 void CGSH_WebGPUJs::InitializeImpl()

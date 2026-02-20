@@ -3,8 +3,7 @@
 #include "../GSHandler.h"
 #include "../GsDebuggerInterface.h"
 #include "GSH_WebGPUContext.h"
-#include "GSH_WebGPUDraw.h"
-#include "GSH_WebGPUTransfer.h"
+#include "GSH_WebGPUBackend.h"
 
 // Forward declare modules
 namespace GSH_WebGPU {
@@ -55,10 +54,13 @@ protected:
 	virtual void ConfigureSurface() {}
 
 protected:
+protected:
 	// New architecture modules
 	GSH_WebGPU::ContextPtr m_context;
-	GSH_WebGPU::DrawPtr m_draw;
-	GSH_WebGPU::TransferPtr m_transfer;
+	GSH_WebGPU::BackendPtr m_backend;
+	
+	// Backend selection (set by subclass or constructor)
+	std::string m_backendName = "vulkan";
 	
 private:
 	// Temporary state to adapt CGSHandler to new modules if needed

@@ -162,7 +162,7 @@ EM_JS(WGPUDevice, getDeviceHandle, (emscripten::EM_VAL device_val), {
 	return 0;
 });
 
-extern "C" void initVmWebGPU(emscripten::val device)
+extern "C" void initVmWebGPU(emscripten::val device, std::string backend)
 {
 	WGPUDevice deviceHandle = getDeviceHandle(device.as_handle());
 	if (!deviceHandle) {
@@ -172,7 +172,7 @@ extern "C" void initVmWebGPU(emscripten::val device)
 	}
 	g_virtualMachine = new CPs2VmJs();
 	g_virtualMachine->Initialize();
-	g_virtualMachine->CreateGSHandler(CGSH_WebGPUJs::GetFactoryFunction(deviceHandle));
+	g_virtualMachine->CreateGSHandler(CGSH_WebGPUJs::GetFactoryFunction(deviceHandle, backend));
 
 	{
 		CGSHandler::PRESENTATION_PARAMS presentationParams;
