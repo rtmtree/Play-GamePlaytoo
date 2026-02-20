@@ -153,21 +153,20 @@ EM_JS(WGPUDevice, getDeviceHandle, (emscripten::EM_VAL device_val), {
 	console.log('getDeviceHandle: device object retrieved:', device);
 
 	if (Module['WebGPU']) {
-		console.log('getDeviceHandle: Module.WebGPU exists');
+		console.log('getDeviceHandle: Module.WebGPU exists, keys:', Object.keys(Module['WebGPU']));
+		// Log all properties and types
+		for (var k in Module['WebGPU']) {
+			console.log('  WebGPU[' + k + '] type:', typeof Module['WebGPU'][k]);
+		}
+		
 		if (Module['WebGPU'].mgr) {
 			console.log('getDeviceHandle: Module.WebGPU.mgr exists');
 			var handle = Module['WebGPU'].mgr.createWGPUHandle(device);
-			console.log('getDeviceHandle: createWGPUHandle result:', handle);
 			return handle;
-		} else {
-			console.error('getDeviceHandle: Module.WebGPU.mgr is missing');
 		}
 	} else {
 		console.error('getDeviceHandle: Module.WebGPU is missing');
 	}
-	
-	// Fallback/Debug dump
-	console.log('Module keys:', Object.keys(Module));
 	
 	return 0;
 });
