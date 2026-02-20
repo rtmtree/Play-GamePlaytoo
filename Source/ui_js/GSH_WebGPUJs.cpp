@@ -3,8 +3,9 @@
 CGSH_WebGPUJs::CGSH_WebGPUJs(WGPUDevice device)
     : m_device(device)
 {
-	this->CGSH_WebGPU::m_device = wgpu::Device::Acquire(device);
-	this->CGSH_WebGPU::m_queue = this->CGSH_WebGPU::m_device.GetQueue();
+	// Base class constructor already created m_context
+	m_context->device = wgpu::Device::Acquire(device);
+	m_context->queue = m_context->device.GetQueue();
 }
 
 CGSH_WebGPU::FactoryFunction CGSH_WebGPUJs::GetFactoryFunction(WGPUDevice device)
@@ -15,15 +16,15 @@ CGSH_WebGPU::FactoryFunction CGSH_WebGPUJs::GetFactoryFunction(WGPUDevice device
 void CGSH_WebGPUJs::InitializeImpl()
 {
 	printf("Initializing WebGPU GS Handler...\r\n");
-	m_instance = wgpu::CreateInstance();
+	m_context->instance = wgpu::CreateInstance();
 	wgpu::EmscriptenSurfaceSourceCanvasHTMLSelector canvasDesc = {};
 	canvasDesc.selector = "#outputCanvas";
 	wgpu::SurfaceDescriptor surfaceDesc = {};
 	surfaceDesc.nextInChain = &canvasDesc;
-	m_surface = m_instance.CreateSurface(&surfaceDesc);
+	m_context->surface = m_context->instance.CreateSurface(&surfaceDesc);
 
-	m_swapChainFormat = wgpu::TextureFormat::BGRA8Unorm;
-	printf("WebGPU Format: %d\n", static_cast<int>(m_swapChainFormat));
+	m_context->swapChainFormat = wgpu::TextureFormat::BGRA8Unorm;
+	printf("WebGPU Format: %d\n", static_cast<int>(m_context->swapChainFormat));
 
 	ConfigureSurface();
 
@@ -38,7 +39,7 @@ void CGSH_WebGPUJs::ReleaseImpl()
 void CGSH_WebGPUJs::SetPresentationParams(const PRESENTATION_PARAMS& presentationParams)
 {
 	CGSH_WebGPU::SetPresentationParams(presentationParams);
-	if(m_surface)
+	if(m_context->surface)
 	{
 		ConfigureSurface();
 	}
@@ -46,25 +47,28 @@ void CGSH_WebGPUJs::SetPresentationParams(const PRESENTATION_PARAMS& presentatio
 
 void CGSH_WebGPUJs::ConfigureSurface()
 {
-	if(!m_surface) return;
+	if(!m_context->surface) return;
 
 	uint32 width = std::max(1u, m_presentationParams.windowWidth);
 	uint32 height = std::max(1u, m_presentationParams.windowHeight);
 
-	printf("Configuring WebGPU surface: %ux%u, format: %d\n", width, height, static_cast<int>(m_swapChainFormat));
+	printf("Configuring WebGPU surface: %ux%u, format: %d\n", width, height, static_cast<int>(m_context->swapChainFormat));
 
 	wgpu::SurfaceConfiguration config = {};
-	config.device = this->CGSH_WebGPU::m_device;
-	config.format = m_swapChainFormat;
+	config.device = m_context->device;
+	config.format = m_context->swapChainFormat;
 	config.usage = wgpu::TextureUsage::RenderAttachment;
 	config.alphaMode = wgpu::CompositeAlphaMode::Auto;
 	config.width = width;
 	config.height = height;
 	config.presentMode = wgpu::PresentMode::Fifo;
 
-	m_surface.Configure(&config);
+	m_context->surface.Configure(&config);
 }
 
 void CGSH_WebGPUJs::PresentBackbuffer()
 {
+	// Presenting is handled by the browser compositor implicitly when using requestAnimationFrame loop
+	// but strictly speaking wgpu Surface present happens on 'End' or automatically.
+	// In Emscripten using requestAnimationFrame loop, the swap happens at the end of the frame.
 }
