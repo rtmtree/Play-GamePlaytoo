@@ -23,37 +23,20 @@ void CGSH_WebGPU::InitializeImpl()
 	// Create appropriate backend
 	if (m_backendName == "opengl")
 	{
-		// TODO: Include header for OpenGLBackend
-		// m_backend = std::make_shared<COpenGLBackend>();
+		m_backend = std::make_shared<COpenGLBackend>();
 	}
 	else
 	{
 		// Default to Vulkan
-		// TODO: Include header for VulkanBackend
-		// m_backend = std::make_shared<CVulkanBackend>();
+		m_backend = std::make_shared<CVulkanBackend>();
 	}
 	
-	// For now, hardcode to Vulkan or whatever compiles until headers are included
-	// Need to check includes above first.
-	// Let's assume headers are included or we can include them now.
-	// But tool doesn't let me edit includes easily here.
-	
-	// I'll update includes in a separate step.
-	// For now logic:
-	
-	// if (m_backend) m_backend->Initialize(m_context);
-	
-	// Since I cannot change includes here, I will just disable the specific creation
-	// and add includes first.
-	
-	// Revert to stub for now to avoid compilation error until includes added?
-	// No, better to add includes first.
-	
-	// Wait, I can't undo this logic flow.
-	// I will replace this block with logic that USES m_backend, assuming it is created.
-	// Actually, I should just create it here if headers are available.
-	
-	// Let's postpone this edit and add includes first.
+	if (m_backend) 
+    {
+        m_backend->Initialize(m_context);
+    }
+
+	CGSH_WebGPU::InitializeImpl();
 }
 
 void CGSH_WebGPU::ReleaseImpl()

@@ -138,32 +138,83 @@ extern "C" void initVm()
 	assert(result == EMSCRIPTEN_RESULT_SUCCESS);
 }
 
-EM_JS(WGPUDevice, getDeviceHandle, (emscripten::EM_VAL device_val), {
+EM_JS(WGPUDevice, getDeviceHandle, (emscripten::EM_VAL device_val, emscripten::EM_VAL adapter_val), {
 	var valObj = typeof Emval !== 'undefined' ? Emval : (typeof EmscriptenVal !== 'undefined' ? EmscriptenVal : null);
 	if (!valObj) {
 		console.error('getDeviceHandle: Emval/EmscriptenVal is undefined!');
 		return 0;
 	}
 	var device = valObj.toValue(device_val);
+	var adapter = adapter_val ? valObj.toValue(adapter_val) : null;
+	
+	console.log('getDeviceHandle: device object retrieved:', device);
+	if (device && device.constructor) console.log('getDeviceHandle: device constructor name:', device.constructor.name);
+	if (adapter) {
+		console.log('getDeviceHandle: adapter object retrieved:', adapter);
+		if (adapter.constructor) console.log('getDeviceHandle: adapter constructor name:', adapter.constructor.name);
+	}
+
 	if (!device) {
 		console.error('getDeviceHandle: Failed to convert val to JS device object');
 		return 0;
 	}
 	
-	console.log('getDeviceHandle: device object retrieved:', device);
+	var webgpu = Module['WebGPU'];
+	if (webgpu) {
+		console.log('getDeviceHandle: Module.WebGPU exists');
+		
+		// In some versions, we might need to import the adapter first
+		if (adapter && typeof webgpu['importJsAdapter'] === 'function') {
+			try {
+				var adapterHandle = webgpu['importJsAdapter'](adapter);
+				console.log('getDeviceHandle: Imported adapter, handle:', adapterHandle);
+			} catch(e) {
+				console.warn('getDeviceHandle: Failed to import adapter:', e);
+			}
+		}
 
-	if (Module['WebGPU']) {
-		console.log('getDeviceHandle: Module.WebGPU exists, keys:', Object.keys(Module['WebGPU']));
-		// Log all properties and types
-		for (var k in Module['WebGPU']) {
-			console.log('  WebGPU[' + k + '] type:', typeof Module['WebGPU'][k]);
+		// Try direct import
+		if (typeof webgpu['importJsDevice'] === 'function') {
+			try {
+				var handle = webgpu['importJsDevice'](device);
+				if (handle) {
+					console.log('getDeviceHandle: Successfully imported device directly, handle:', handle);
+					return handle;
+				}
+				console.warn('getDeviceHandle: importJsDevice returned 0');
+			} catch(e) {
+				console.warn('getDeviceHandle: importJsDevice threw:', e);
+			}
 		}
 		
-		if (Module['WebGPU'].mgr) {
-			console.log('getDeviceHandle: Module.WebGPU.mgr exists');
-			var handle = Module['WebGPU'].mgr.createWGPUHandle(device);
-			return handle;
+		// Try via mgr (manager)
+		if (webgpu['mgr'] && typeof webgpu['mgr']['importJsDevice'] === 'function') {
+			try {
+				var handle = webgpu['mgr']['importJsDevice'](device);
+				if (handle) {
+					console.log('getDeviceHandle: Successfully imported device via mgr, handle:', handle);
+					return handle;
+				}
+			} catch(e) {
+				console.warn('getDeviceHandle: importJsDevice via mgr threw:', e);
+			}
 		}
+		
+		// Try via Internals
+		if (webgpu['Internals'] && typeof webgpu['Internals']['importJsDevice'] === 'function') {
+			try {
+				var handle = webgpu['Internals']['importJsDevice'](device);
+				if (handle) {
+					console.log('getDeviceHandle: Successfully imported device via Internals, handle:', handle);
+					return handle;
+				}
+			} catch(e) {
+				console.warn('getDeviceHandle: importJsDevice via Internals threw:', e);
+			}
+		}
+
+		console.error('getDeviceHandle: Failed to find a valid importJsDevice function or it returned 0');
+		console.log('Available WebGPU keys:', Object.keys(webgpu));
 	} else {
 		console.error('getDeviceHandle: Module.WebGPU is missing');
 	}
@@ -171,9 +222,9 @@ EM_JS(WGPUDevice, getDeviceHandle, (emscripten::EM_VAL device_val), {
 	return 0;
 });
 
-extern "C" void initVmWebGPU(emscripten::val device, std::string backend)
+extern "C" void initVmWebGPU(emscripten::val device, emscripten::val adapter, std::string backend)
 {
-	WGPUDevice deviceHandle = getDeviceHandle(device.as_handle());
+	WGPUDevice deviceHandle = getDeviceHandle(device.as_handle(), adapter.as_handle());
 	if (!deviceHandle) {
 		printf("ERROR: Failed to convert JS GPUDevice to WGPUDevice handle\n");
 		emscripten_throw_string("Failed to convert JS GPUDevice to WGPUDevice handle");
