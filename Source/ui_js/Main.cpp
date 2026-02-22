@@ -222,9 +222,44 @@ EM_JS(WGPUDevice, getDeviceHandle, (emscripten::EM_VAL device_val, emscripten::E
 	return 0;
 });
 
+EM_JS(int, canCanvasBeAccessed, (), {
+	try {
+		// Check if canvas exists and is accessible
+		var canvas = Module.canvas;
+		if (!canvas) {
+			console.warn('canCanvasBeAccessed: Module.canvas is not available');
+			return 0;
+		}
+		
+		// Try to get the context to verify canvas is alive
+		var ctx = canvas.getContext('2d');
+		if (!ctx) {
+			console.warn('canCanvasBeAccessed: Failed to get 2D context from canvas');
+			return 0;
+		}
+		
+		console.log('canCanvasBeAccessed: Canvas is accessible');
+		return 1;
+	} catch(e) {
+		console.error('canCanvasBeAccessed: Exception checking canvas:', e);
+		return 0;
+	}
+});
+
 extern "C" void initVmWebGPU(emscripten::val device, emscripten::val adapter, std::string backend)
 {
 	printf("DEBUG: initVmWebGPU called with backend: %s\n", backend.c_str());
+	
+	// Validate canvas accessibility before attempting WebGPU
+	if (!canCanvasBeAccessed()) {
+		printf("ERROR: Canvas is not accessible from worker thread - cannot initialize WebGPU\n");
+		printf("HINT: WebGPU requires access to the main thread's canvas element.\n");
+		printf("HINT: Consider using OffscreenCanvas or initializing WASM on the main thread.\n");
+		emscripten_throw_string("Canvas not accessible - WebGPU initialization aborted");
+		return;
+	}
+	
+	printf("DEBUG: Canvas accessibility verified\n");
 	
 	try {
 		WGPUDevice deviceHandle = getDeviceHandle(device.as_handle(), adapter.as_handle());
