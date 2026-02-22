@@ -224,88 +224,121 @@ EM_JS(WGPUDevice, getDeviceHandle, (emscripten::EM_VAL device_val, emscripten::E
 
 extern "C" void initVmWebGPU(emscripten::val device, emscripten::val adapter, std::string backend)
 {
-	WGPUDevice deviceHandle = getDeviceHandle(device.as_handle(), adapter.as_handle());
-	if (!deviceHandle) {
-		printf("ERROR: Failed to convert JS GPUDevice to WGPUDevice handle\n");
-		emscripten_throw_string("Failed to convert JS GPUDevice to WGPUDevice handle");
-		return;
+	printf("DEBUG: initVmWebGPU called with backend: %s\n", backend.c_str());
+	
+	try {
+		WGPUDevice deviceHandle = getDeviceHandle(device.as_handle(), adapter.as_handle());
+		if (!deviceHandle) {
+			printf("ERROR: Failed to convert JS GPUDevice to WGPUDevice handle\n");
+			throw std::runtime_error("Failed to convert JS GPUDevice to WGPUDevice handle");
+		}
+		
+		printf("DEBUG: Creating PS2 VM with device handle: %u\n", static_cast<unsigned int>(reinterpret_cast<uintptr_t>(deviceHandle)));
+		g_virtualMachine = new CPs2VmJs();
+		g_virtualMachine->Initialize();
+		
+		printf("DEBUG: Creating WebGPU GS handler\n");
+		g_virtualMachine->CreateGSHandler(CGSH_WebGPUJs::GetFactoryFunction(deviceHandle, backend));
+		
+		printf("DEBUG: WebGPU GS handler created successfully\n");
+		
+		{
+			CGSHandler::PRESENTATION_PARAMS presentationParams;
+			presentationParams.mode = CGSHandler::PRESENTATION_MODE_FIT;
+			presentationParams.windowWidth = 480;
+			presentationParams.windowHeight = 360;
+
+			g_virtualMachine->m_ee->m_gs->SetPresentationParams(presentationParams);
+		}
+
+		{
+			g_virtualMachine->CreatePadHandler(CPH_GenericInput::GetFactoryFunction());
+			auto padHandler = static_cast<CPH_GenericInput*>(g_virtualMachine->GetPadHandler());
+			auto& bindingManager = padHandler->GetBindingManager();
+
+			g_inputProvider = std::make_shared<CInputProviderEmscripten>();
+			bindingManager.RegisterInputProvider(g_inputProvider);
+
+			bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::START, CInputProviderEmscripten::MakeBindingTarget("Enter"));
+			bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::SELECT, CInputProviderEmscripten::MakeBindingTarget("Backspace"));
+			bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::DPAD_LEFT, CInputProviderEmscripten::MakeBindingTarget("ArrowLeft"));
+			bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::DPAD_RIGHT, CInputProviderEmscripten::MakeBindingTarget("ArrowRight"));
+			bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::DPAD_UP, CInputProviderEmscripten::MakeBindingTarget("ArrowUp"));
+			bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::DPAD_DOWN, CInputProviderEmscripten::MakeBindingTarget("ArrowDown"));
+			bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::SQUARE, CInputProviderEmscripten::MakeBindingTarget("KeyA"));
+			bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::CROSS, CInputProviderEmscripten::MakeBindingTarget("KeyZ"));
+			bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::TRIANGLE, CInputProviderEmscripten::MakeBindingTarget("KeyS"));
+			bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::CIRCLE, CInputProviderEmscripten::MakeBindingTarget("KeyX"));
+			bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::L1, CInputProviderEmscripten::MakeBindingTarget("Key1"));
+			bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::L2, CInputProviderEmscripten::MakeBindingTarget("Key2"));
+			bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::L3, CInputProviderEmscripten::MakeBindingTarget("Key3"));
+			bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::R1, CInputProviderEmscripten::MakeBindingTarget("Key8"));
+			bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::R2, CInputProviderEmscripten::MakeBindingTarget("Key9"));
+			bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::R3, CInputProviderEmscripten::MakeBindingTarget("Key0"));
+
+			bindingManager.SetSimulatedAxisBinding(0, PS2::CControllerInfo::ANALOG_LEFT_X,
+			                                       CInputProviderEmscripten::MakeBindingTarget("KeyF"),
+			                                       CInputProviderEmscripten::MakeBindingTarget("KeyH"));
+			bindingManager.SetSimulatedAxisBinding(0, PS2::CControllerInfo::ANALOG_LEFT_Y,
+			                                       CInputProviderEmscripten::MakeBindingTarget("KeyT"),
+			                                       CInputProviderEmscripten::MakeBindingTarget("KeyG"));
+
+			bindingManager.SetSimulatedAxisBinding(0, PS2::CControllerInfo::ANALOG_RIGHT_X,
+			                                       CInputProviderEmscripten::MakeBindingTarget("KeyJ"),
+			                                       CInputProviderEmscripten::MakeBindingTarget("KeyL"));
+			bindingManager.SetSimulatedAxisBinding(0, PS2::CControllerInfo::ANALOG_RIGHT_Y,
+			                                       CInputProviderEmscripten::MakeBindingTarget("KeyI"),
+			                                       CInputProviderEmscripten::MakeBindingTarget("KeyK"));
+		}
+
+		{
+			g_soundHandler = new CSH_OpenAL();
+			g_virtualMachine->CreateSoundHandler(CSH_OpenALProxy::GetFactoryFunction(g_soundHandler));
+		}
+
+		g_gsNewFrameConnection = g_virtualMachine->GetGSHandler()->OnNewFrame.Connect(std::bind(&CStatsManager::OnGsNewFrame, &CStatsManager::GetInstance(), std::placeholders::_1));
+
+		EMSCRIPTEN_RESULT result = EMSCRIPTEN_RESULT_SUCCESS;
+
+		result = emscripten_set_keydown_callback("#outputCanvas", nullptr, false, &keyboardCallback);
+		assert(result == EMSCRIPTEN_RESULT_SUCCESS);
+
+		result = emscripten_set_keyup_callback("#outputCanvas", nullptr, false, &keyboardCallback);
+		assert(result == EMSCRIPTEN_RESULT_SUCCESS);
+		
+		printf("DEBUG: initVmWebGPU completed successfully\n");
+	} 
+	catch (const std::exception& e) {
+		printf("ERROR: Exception during WebGPU initialization: %s\n", e.what());
+		printf("ERROR: WebGPU handler creation failed (likely canvas not accessible from worker thread)\n");
+		printf("HINT: This may occur when WASM runs in a worker thread and cannot access the main thread's canvas.\n");
+		emscripten_throw_string("WebGPU handler creation failed - canvas may not be accessible from worker thread");
 	}
-	g_virtualMachine = new CPs2VmJs();
-	g_virtualMachine->Initialize();
-	g_virtualMachine->CreateGSHandler(CGSH_WebGPUJs::GetFactoryFunction(deviceHandle, backend));
-
-	{
-		CGSHandler::PRESENTATION_PARAMS presentationParams;
-		presentationParams.mode = CGSHandler::PRESENTATION_MODE_FIT;
-		presentationParams.windowWidth = 480;
-		presentationParams.windowHeight = 360;
-
-		g_virtualMachine->m_ee->m_gs->SetPresentationParams(presentationParams);
+	catch (...) {
+		printf("ERROR: Unknown exception during WebGPU handler creation\n");
+		emscripten_throw_string("WebGPU handler creation failed - unknown error");
 	}
-
-	{
-		g_virtualMachine->CreatePadHandler(CPH_GenericInput::GetFactoryFunction());
-		auto padHandler = static_cast<CPH_GenericInput*>(g_virtualMachine->GetPadHandler());
-		auto& bindingManager = padHandler->GetBindingManager();
-
-		g_inputProvider = std::make_shared<CInputProviderEmscripten>();
-		bindingManager.RegisterInputProvider(g_inputProvider);
-
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::START, CInputProviderEmscripten::MakeBindingTarget("Enter"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::SELECT, CInputProviderEmscripten::MakeBindingTarget("Backspace"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::DPAD_LEFT, CInputProviderEmscripten::MakeBindingTarget("ArrowLeft"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::DPAD_RIGHT, CInputProviderEmscripten::MakeBindingTarget("ArrowRight"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::DPAD_UP, CInputProviderEmscripten::MakeBindingTarget("ArrowUp"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::DPAD_DOWN, CInputProviderEmscripten::MakeBindingTarget("ArrowDown"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::SQUARE, CInputProviderEmscripten::MakeBindingTarget("KeyA"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::CROSS, CInputProviderEmscripten::MakeBindingTarget("KeyZ"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::TRIANGLE, CInputProviderEmscripten::MakeBindingTarget("KeyS"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::CIRCLE, CInputProviderEmscripten::MakeBindingTarget("KeyX"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::L1, CInputProviderEmscripten::MakeBindingTarget("Key1"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::L2, CInputProviderEmscripten::MakeBindingTarget("Key2"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::L3, CInputProviderEmscripten::MakeBindingTarget("Key3"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::R1, CInputProviderEmscripten::MakeBindingTarget("Key8"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::R2, CInputProviderEmscripten::MakeBindingTarget("Key9"));
-		bindingManager.SetSimpleBinding(0, PS2::CControllerInfo::R3, CInputProviderEmscripten::MakeBindingTarget("Key0"));
-
-		bindingManager.SetSimulatedAxisBinding(0, PS2::CControllerInfo::ANALOG_LEFT_X,
-		                                       CInputProviderEmscripten::MakeBindingTarget("KeyF"),
-		                                       CInputProviderEmscripten::MakeBindingTarget("KeyH"));
-		bindingManager.SetSimulatedAxisBinding(0, PS2::CControllerInfo::ANALOG_LEFT_Y,
-		                                       CInputProviderEmscripten::MakeBindingTarget("KeyT"),
-		                                       CInputProviderEmscripten::MakeBindingTarget("KeyG"));
-
-		bindingManager.SetSimulatedAxisBinding(0, PS2::CControllerInfo::ANALOG_RIGHT_X,
-		                                       CInputProviderEmscripten::MakeBindingTarget("KeyJ"),
-		                                       CInputProviderEmscripten::MakeBindingTarget("KeyL"));
-		bindingManager.SetSimulatedAxisBinding(0, PS2::CControllerInfo::ANALOG_RIGHT_Y,
-		                                       CInputProviderEmscripten::MakeBindingTarget("KeyI"),
-		                                       CInputProviderEmscripten::MakeBindingTarget("KeyK"));
-	}
-
-	{
-		g_soundHandler = new CSH_OpenAL();
-		g_virtualMachine->CreateSoundHandler(CSH_OpenALProxy::GetFactoryFunction(g_soundHandler));
-	}
-
-	g_gsNewFrameConnection = g_virtualMachine->GetGSHandler()->OnNewFrame.Connect(std::bind(&CStatsManager::OnGsNewFrame, &CStatsManager::GetInstance(), std::placeholders::_1));
-
-	EMSCRIPTEN_RESULT result = EMSCRIPTEN_RESULT_SUCCESS;
-
-	result = emscripten_set_keydown_callback("#outputCanvas", nullptr, false, &keyboardCallback);
-	assert(result == EMSCRIPTEN_RESULT_SUCCESS);
-
-	result = emscripten_set_keyup_callback("#outputCanvas", nullptr, false, &keyboardCallback);
-	assert(result == EMSCRIPTEN_RESULT_SUCCESS);
 }
 
 void bootElf(std::string path)
 {
+	if(!g_virtualMachine)
+	{
+		printf("ERROR: bootElf called but virtual machine is null\n");
+		return;
+	}
+	printf("DEBUG: Booting ELF from: %s\n", path.c_str());
 	g_virtualMachine->BootElf(path);
 }
 
 void bootDiscImage(std::string path)
 {
+	if(!g_virtualMachine)
+	{
+		printf("ERROR: bootDiscImage called but virtual machine is null\n");
+		return;
+	}
+	printf("DEBUG: Booting disc image from: %s\n", path.c_str());
 	g_virtualMachine->BootDiscImage(path);
 }
 
