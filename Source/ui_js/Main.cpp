@@ -240,9 +240,14 @@ EM_JS(int, canCanvasBeAccessed, (emscripten::EM_VAL canvas_val), {
 	}
 });
 
+EM_JS(int, isWorker, (), {
+	return (typeof window === 'undefined' && typeof importScripts === 'function') ? 1 : 0;
+});
+
 extern "C" void initVmWebGPU(emscripten::val device, emscripten::val adapter, emscripten::val canvas, std::string backend)
 {
 	printf("DEBUG: initVmWebGPU called with backend: %s\n", backend.c_str());
+	printf("DEBUG: Running in %s thread\n", isWorker() ? "WORKER" : "MAIN");
 	
 	// Validate canvas accessibility before attempting WebGPU
 	if (!canCanvasBeAccessed(canvas.as_handle())) {
@@ -262,18 +267,37 @@ extern "C" void initVmWebGPU(emscripten::val device, emscripten::val adapter, em
 		}
 		
 		printf("DEBUG: Creating WebGPU Instance and Surface\n");
-		wgpu::Instance instance = wgpu::CreateInstance();
+		wgpu::InstanceDescriptor instanceDesc = {};
+		wgpu::Instance instance = wgpu::CreateInstance(&instanceDesc);
 		
+		if (!instance) {
+			printf("ERROR: Failed to create WebGPU instance\n");
+			throw std::runtime_error("Failed to create WebGPU instance");
+		}
+		printf("DEBUG: Instance created: %p\n", (void*)instance.Get());
+
+		wgpu::Surface surface = nullptr;
+
+		// Try to create surface using the selector
+		// In some versions of Dawn, the name is SurfaceDescriptorFromCanvasHTMLSelector
+		// and in others it's EmscriptenSurfaceSourceCanvasHTMLSelector.
+		// We'll use the latter as it was previously used, but make sure it's fully initialized.
 		wgpu::EmscriptenSurfaceSourceCanvasHTMLSelector canvasDesc = {};
 		canvasDesc.selector = "#outputCanvas";
+		
 		wgpu::SurfaceDescriptor surfaceDesc = {};
 		surfaceDesc.nextInChain = &canvasDesc;
-		wgpu::Surface surface = instance.CreateSurface(&surfaceDesc);
+		
+		printf("DEBUG: Attempting to create surface with selector: #outputCanvas\n");
+		surface = instance.CreateSurface(&surfaceDesc);
 		
 		if (!surface) {
-			printf("ERROR: Failed to create WebGPU surface\n");
+			printf("ERROR: Failed to create WebGPU surface with selector\n");
+			// If it failed, maybe we are in a worker and need to try something else?
+			// But for now, let's just fail and log.
 			throw std::runtime_error("Failed to create WebGPU surface");
 		}
+		printf("DEBUG: Surface created: %p\n", (void*)surface.Get());
 
 		printf("DEBUG: Creating PS2 VM\n");
 		g_virtualMachine = new CPs2VmJs();
