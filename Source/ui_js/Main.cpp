@@ -261,12 +261,26 @@ extern "C" void initVmWebGPU(emscripten::val device, emscripten::val adapter, em
 			throw std::runtime_error("Failed to convert JS GPUDevice to WGPUDevice handle");
 		}
 		
-		printf("DEBUG: Creating PS2 VM with device handle: %u\n", static_cast<unsigned int>(reinterpret_cast<uintptr_t>(deviceHandle)));
+		printf("DEBUG: Creating WebGPU Instance and Surface\n");
+		wgpu::Instance instance = wgpu::CreateInstance();
+		
+		wgpu::EmscriptenSurfaceSourceCanvasHTMLSelector canvasDesc = {};
+		canvasDesc.selector = "#outputCanvas";
+		wgpu::SurfaceDescriptor surfaceDesc = {};
+		surfaceDesc.nextInChain = &canvasDesc;
+		wgpu::Surface surface = instance.CreateSurface(&surfaceDesc);
+		
+		if (!surface) {
+			printf("ERROR: Failed to create WebGPU surface\n");
+			throw std::runtime_error("Failed to create WebGPU surface");
+		}
+
+		printf("DEBUG: Creating PS2 VM\n");
 		g_virtualMachine = new CPs2VmJs();
 		g_virtualMachine->Initialize();
 		
 		printf("DEBUG: Creating WebGPU GS handler\n");
-		g_virtualMachine->CreateGSHandler(CGSH_WebGPUJs::GetFactoryFunction(deviceHandle, backend));
+		g_virtualMachine->CreateGSHandler(CGSH_WebGPUJs::GetFactoryFunction(wgpu::Device::Acquire(deviceHandle), instance, surface, backend));
 		
 		printf("DEBUG: WebGPU GS handler created successfully\n");
 		

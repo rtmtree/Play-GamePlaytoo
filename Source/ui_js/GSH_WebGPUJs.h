@@ -6,10 +6,10 @@
 class CGSH_WebGPUJs : public CGSH_WebGPU
 {
 public:
-	CGSH_WebGPUJs(WGPUDevice, const std::string&);
+	CGSH_WebGPUJs(wgpu::Device, wgpu::Instance, wgpu::Surface, const std::string&);
 	virtual ~CGSH_WebGPUJs() = default;
 
-	static FactoryFunction GetFactoryFunction(WGPUDevice, const std::string&);
+	static FactoryFunction GetFactoryFunction(wgpu::Device, wgpu::Instance, wgpu::Surface, const std::string&);
 
 	void InitializeImpl() override;
 	void ReleaseImpl() override;
@@ -18,5 +18,4 @@ public:
 	void ConfigureSurface() override;
 
 private:
-	WGPUDevice m_device;
 };

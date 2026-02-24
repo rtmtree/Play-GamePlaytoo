@@ -1,31 +1,26 @@
 #include "GSH_WebGPUJs.h"
 
-CGSH_WebGPUJs::CGSH_WebGPUJs(WGPUDevice device, const std::string& backend)
-    : m_device(device)
+CGSH_WebGPUJs::CGSH_WebGPUJs(wgpu::Device device, wgpu::Instance instance, wgpu::Surface surface, const std::string& backend)
 {
 	// Base class constructor already created m_context (Vulkan style)
 	// If backend is "opengl", we might want to do something else or set a flag.
 	// For now, let's just initialize the context as before, assuming "vulkan" style is default.
 	printf("GSH_WebGPUJs initialized with backend: %s\n", backend.c_str());
-	m_context->device = wgpu::Device::Acquire(device);
+	m_context->device = device;
+	m_context->instance = instance;
 	m_context->queue = m_context->device.GetQueue();
+	m_context->surface = surface;
 	m_backendName = backend; // Store backend preference
 }
 
-CGSH_WebGPU::FactoryFunction CGSH_WebGPUJs::GetFactoryFunction(WGPUDevice device, const std::string& backend)
+CGSH_WebGPU::FactoryFunction CGSH_WebGPUJs::GetFactoryFunction(wgpu::Device device, wgpu::Instance instance, wgpu::Surface surface, const std::string& backend)
 {
-	return [device, backend]() { return new CGSH_WebGPUJs(device, backend); };
+	return [device, instance, surface, backend]() { return new CGSH_WebGPUJs(device, instance, surface, backend); };
 }
 
 void CGSH_WebGPUJs::InitializeImpl()
 {
 	printf("Initializing WebGPU GS Handler...\r\n");
-	m_context->instance = wgpu::CreateInstance();
-	wgpu::EmscriptenSurfaceSourceCanvasHTMLSelector canvasDesc = {};
-	canvasDesc.selector = "#outputCanvas";
-	wgpu::SurfaceDescriptor surfaceDesc = {};
-	surfaceDesc.nextInChain = &canvasDesc;
-	m_context->surface = m_context->instance.CreateSurface(&surfaceDesc);
 
 	m_context->swapChainFormat = wgpu::TextureFormat::BGRA8Unorm;
 	printf("WebGPU Format: %d\n", static_cast<int>(m_context->swapChainFormat));
