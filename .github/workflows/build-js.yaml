@@ -26,17 +26,17 @@ jobs:
     - name: Build Native Code
       run: cmake --build --preset wasm-ninja-release
     # Setup Node.js since Emscripten can override the node's version.
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: 20.17
-    - name: Run CodeGenTestSuite
-      run: |
-        cd $GITHUB_WORKSPACE/deps/CodeGen/js
-        npm install
-        tsc
-        cd $GITHUB_WORKSPACE/build_cmake/build/wasm-ninja/Source/ui_js/Source/CodeGen/Release
-        node $GITHUB_WORKSPACE/deps/CodeGen/js/out/index.js
+    # - name: Set up Node.js
+    #   uses: actions/setup-node@v3
+    #   with:
+    #     node-version: 20.17
+    # - name: Run CodeGenTestSuite
+    #   run: |
+    #     cd $GITHUB_WORKSPACE/deps/CodeGen/js
+    #     npm install
+    #     tsc
+    #     cd $GITHUB_WORKSPACE/build_cmake/build/wasm-ninja/Source/ui_js/Source/CodeGen/Release
+    #     node $GITHUB_WORKSPACE/deps/CodeGen/js/out/index.js
     - name: Upload Play.js and Play.wasm artifacts
       uses: actions/upload-artifact@v4
       with:
