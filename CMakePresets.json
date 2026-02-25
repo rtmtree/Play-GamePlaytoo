@@ -125,6 +125,10 @@
                 "USE_QT": {
                     "type": "BOOL",
                     "value": "OFF"
+                },
+                "WITH_SYSTEM_ZLIB": {
+                    "type": "BOOL",
+                    "value": "ON"
                 }
             },
             "hidden": true

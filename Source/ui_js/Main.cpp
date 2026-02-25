@@ -244,10 +244,36 @@ EM_JS(int, isWorker, (), {
 	return (typeof window === 'undefined' && typeof importScripts === 'function') ? 1 : 0;
 });
 
+EM_JS(int, checkCanvasSelector, (const char* selector), {
+	var selectorStr = UTF8ToString(selector);
+	try {
+		var canvas = findCanvasEventTarget(selectorStr);
+		if (canvas) {
+			console.log('checkCanvasSelector: found canvas for selector "' + selectorStr + '":', canvas);
+			var context = canvas.getContext('webgpu');
+			if (context) {
+				console.log('checkCanvasSelector: successfully got webgpu context');
+				return 1;
+			} else {
+				console.error('checkCanvasSelector: failed to get webgpu context from canvas');
+				return 0;
+			}
+		} else {
+			console.error('checkCanvasSelector: findCanvasEventTarget returned null for selector "' + selectorStr + '"');
+			return 0;
+		}
+	} catch(e) {
+		console.error('checkCanvasSelector: exception:', e);
+		return 0;
+	}
+});
+
 extern "C" void initVmWebGPU(emscripten::val device, emscripten::val adapter, emscripten::val canvas, std::string backend)
 {
 	printf("DEBUG: initVmWebGPU called with backend: %s\n", backend.c_str());
 	printf("DEBUG: Running in %s thread\n", isWorker() ? "WORKER" : "MAIN");
+	
+	checkCanvasSelector("#outputCanvas");
 	
 	// Validate canvas accessibility before attempting WebGPU
 	if (!canCanvasBeAccessed(canvas.as_handle())) {
