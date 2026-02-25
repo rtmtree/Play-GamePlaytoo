@@ -128,7 +128,7 @@
                 },
                 "WITH_SYSTEM_ZLIB": {
                     "type": "BOOL",
-                    "value": "ON"
+                    "value": "OFF"
                 }
             },
             "hidden": true
