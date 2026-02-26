@@ -1,0 +1,10 @@
+run "npm run build" at `js/play_browser` and start http server at "./build"
+check if the wasm of WebGPU works at "http://localhost:PORT/?webGPU=opengl" by looking at console if there is error related to WebGPU
+if not, fix the C code.
+then rebuild with " ./build_wasm_release.sh"
+
+and keep doing this until the "http://localhost:PORT/?webGPU=opengl" log no error (wasm work with WebGPU)
+
+
+also make sure the app still work with WebGL fallback if WebGPU dies, (should log something like "WebGPU not supported, falling back to WebGL").
+if both WebGL and WebGPU fail, better revert.

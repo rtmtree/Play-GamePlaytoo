@@ -47,6 +47,7 @@ span.version {
 
 span.stats {
   float: right;
+  color: white;
 }
 
 canvas {

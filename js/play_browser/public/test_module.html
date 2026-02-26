@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Module Test</title>
+</head>
+<body>
+    <h1>Module Loading Test</h1>
+    <div id="log"></div>
+    
+    <script type="module">
+        const log = document.getElementById('log');
+        
+        function addLog(message) {
+            const div = document.createElement('div');
+            div.textContent = message;
+            log.appendChild(div);
+            console.log(message);
+        }
+        
+        addLog('Starting module test...');
+        
+        try {
+            import('./src/Play900.js')
+                .then(module => {
+                    addLog('Module imported successfully');
+                    if (module.default) {
+                        addLog('Default export found');
+                        if (typeof module.default === 'function') {
+                            addLog('Default export is a function');
+                            // Try to instantiate the module
+                            const instance = new module.default();
+                            addLog('Module instantiated successfully');
+                        } else {
+                            addLog('Default export is not a function: ' + typeof module.default);
+                        }
+                    } else {
+                        addLog('No default export found');
+                    }
+                })
+                .catch(error => {
+                    addLog('Error importing module: ' + error.message);
+                    console.error(error);
+                });
+        } catch (error) {
+            addLog('Error: ' + error.message);
+            console.error(error);
+        }
+    </script>
+</body>
+</html>

@@ -42,6 +42,9 @@ xcuserdata
 node_modules
 
 
+js/play_browser/src/roms
+
+
 # js/play_browser/public/Play600.js
 # js/play_browser/public/Play600.wasm
 # js/play_browser/public/Play300.js

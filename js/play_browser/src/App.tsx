@@ -395,7 +395,7 @@ function App() {
     if (!romLoaded || !controlsExpanded) {
       return;
     }
-    
+
     const timer = setTimeout(() => {
       setControlsExpanded(false);
     }, 10000); // 10 seconds
@@ -729,10 +729,10 @@ function App() {
           </>
         )
         }
-        
-       
-        
-        {/* <Stats /> */}
+
+
+
+        <Stats />
       </div >
     );
   }

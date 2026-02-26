@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebGPU Test</title>
+</head>
+<body>
+    <h1>WebGPU OpenGL Backend Test</h1>
+    <canvas id="outputCanvas" width="640" height="480"></canvas>
+    <div id="log"></div>
+    
+    <script>
+        const log = document.getElementById('log');
+        
+        function addLog(message) {
+            const div = document.createElement('div');
+            div.textContent = message;
+            log.appendChild(div);
+            console.log(message);
+        }
+        
+        // Check if WebGPU is available
+        if (!navigator.gpu) {
+            addLog('WebGPU not supported');
+        } else {
+            addLog('WebGPU is supported');
+            
+            // Try to get the adapter
+            navigator.gpu.requestAdapter()
+                .then(adapter => {
+                    if (!adapter) {
+                        addLog('No WebGPU adapter found');
+                        return;
+                    }
+                    addLog('WebGPU adapter found');
+                    
+                    // Try to get the device
+                    return adapter.requestDevice();
+                })
+                .then(device => {
+                    if (!device) {
+                        addLog('Failed to get WebGPU device');
+                        return;
+                    }
+                    addLog('WebGPU device obtained');
+                    
+                    // Try to get the canvas context
+                    const canvas = document.getElementById('outputCanvas');
+                    const context = canvas.getContext('webgpu');
+                    if (!context) {
+                        addLog('Failed to get WebGPU canvas context');
+                        return;
+                    }
+                    addLog('WebGPU canvas context obtained');
+                    
+                    // Configure the surface
+                    const format = navigator.gpu.getPreferredCanvasFormat();
+                    context.configure({
+                        device: device,
+                        format: format,
+                    });
+                    addLog('WebGPU surface configured');
+                    
+                    // Now try to load the Play900 module
+                    addLog('Attempting to load Play900 module...');
+                    return import('./src/Play900.js');
+                })
+                .then(module => {
+                    if (module && module.default) {
+                        addLog('Play900 module loaded successfully');
+                        
+                        // Check if initVmWebGPU is available
+                        if (typeof module.default.initVmWebGPU === 'function') {
+                            addLog('initVmWebGPU function found');
+                        } else {
+                            addLog('initVmWebGPU function not found');
+                        }
+                    } else {
+                        addLog('Failed to load Play900 module');
+                    }
+                })
+                .catch(error => {
+                    addLog('Error: ' + error.message);
+                    console.error(error);
+                });
+        }
+    </script>
+</body>
+</html>
