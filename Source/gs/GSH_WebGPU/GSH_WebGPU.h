@@ -4,6 +4,7 @@
 #include "../GsDebuggerInterface.h"
 #include "GSH_WebGPUContext.h"
 #include "GSH_WebGPUBackend.h"
+#include "GSH_WebGPUDraw.h"
 
 // Forward declare modules
 namespace GSH_WebGPU {
@@ -54,21 +55,19 @@ protected:
 	virtual void ConfigureSurface() {}
 
 protected:
-protected:
-	// New architecture modules
 	GSH_WebGPU::ContextPtr m_context;
 	GSH_WebGPU::BackendPtr m_backend;
-	
+
 	// Backend selection (set by subclass or constructor)
 	std::string m_backendName = "vulkan";
-	
+
 private:
-	// Temporary state to adapt CGSHandler to new modules if needed
-	VERTEX m_vtxBuffer[3];
-	uint32 m_vtxCount = 0;
-	uint32 m_primitiveType = 0;
-	PRIM m_primitiveMode;
-	
+	// Vertex assembly state (mirrors GSH_Vulkan)
+	VERTEX   m_vtxBuffer[3];
+	uint32   m_vtxCount      = 0;
+	uint32   m_primitiveType = 0;
+	PRIM     m_primitiveMode;
+
 	void Prim_Point();
 	void Prim_Line();
 	void Prim_Triangle();

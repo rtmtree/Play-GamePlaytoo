@@ -7,9 +7,10 @@ namespace GSH_WebGPU
 {
 	struct PIPELINE
 	{
-		wgpu::BindGroupLayout bindGroupLayout;
-		wgpu::PipelineLayout pipelineLayout;
-		wgpu::RenderPipeline pipeline;
+		wgpu::BindGroupLayout bindGroupLayout;         // legacy / compat
+		wgpu::BindGroupLayout uniformBindGroupLayout;  // group 0: vertex+fragment uniform buffers
+		wgpu::PipelineLayout  pipelineLayout;
+		wgpu::RenderPipeline  pipeline;
 	};
 
 	template <typename KeyType>
